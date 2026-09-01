@@ -1,60 +1,60 @@
-﻿import { PresetItem } from '../types';
+import { PresetItem } from '../types';
 
 export const SAMPLE_PRESETS: PresetItem[] = [
   {
     id: 'khamko-1',
     title: 'ຖືກເຂົາຫລີ້ນຂອງໃສ່ (Meme 1)',
     caption: 'ບໍ່ແມ່ນຂ້ອຍຖືກເຂົາຫລີ້ນຂອງໃສ່ບໍ? ຄືມາຄິດຮອດເຂົາເຊົ້າແລງແທະ🫠',
-    category: 'Khamko Classics',
+    category: 'ຄຳໂກ້ ຄລາສສິກ',
     timestamp: 'now'
   },
   {
     id: 'khamko-2',
     title: 'ຂໍໂທດເດີ (Meme 2)',
     caption: 'ຂໍໂທດເດີ ຖ້າມື້ຫນຶ່ງຂ້ອຍເມົາແລ້ວ ແຊທໄປບອກຄິດຮອດ',
-    category: 'Khamko Classics',
+    category: 'ຄຳໂກ້ ຄລາສສິກ',
     timestamp: 'now'
   },
   {
     id: 'khamko-3',
     title: 'ມີແຂ່ງຮັກດຽວບໍ (Meme 3)',
     caption: 'ມີແຂ່ງຮັກດຽວບໍ? ຊິໄປຮັບລາງວັນ',
-    category: 'Khamko Classics',
+    category: 'ຄຳໂກ້ ຄລາສສິກ',
     timestamp: 'now'
   },
   {
     id: 'khamko-4',
     title: 'ແມ່ເວົ້າວ່າ (Meme 4)',
     caption: 'ແມ່ເວົ້າວ່າ ຄົບຫມູ່ຄູ່ແຕ່ລະຄົນກະມີແຕ່ຄົນຂີ້ເມົາ ແລ້ວແມ່ຊິຮູ້ບໍ່ນໍວ່າ ລູກແມ່ນີ້ແຫລະຄືໂຕການ🫣',
-    category: 'Khamko Classics',
+    category: 'ຄຳໂກ້ ຄລາສສິກ',
     timestamp: 'now'
   },
   {
-    id: 'funny-1',
-    title: 'Deadline dí',
-    caption: 'Chạy deadline không mệt, mệt là lúc nhìn lại deadline chạy còn nhanh hơn mình 🏃‍♂️💨',
-    category: 'Hài hước / Meme',
-    timestamp: 'vừa xong'
-  },
-  {
-    id: 'funny-2',
-    title: 'Ngủ sớm dậy sớm',
-    caption: 'Tự hứa hôm nay sẽ ngủ sớm lúc 10h, và bây giờ là 3h sáng đang lướt mạng xem video nấu ăn 🥲',
-    category: 'Hài hước / Meme',
+    id: 'lao-funny-1',
+    title: 'ເລື່ອງເງິນທອງ',
+    caption: 'ເງິນບໍ່ໄດ້ຫາຍໄປໃສ ມັນພຽງແຕ່ປ່ຽນຈາກໃນກະເປົາ ໄປເປັນຂອງກິນແຊບໆເທົ່ານັ້ນເອງ 🧋💸',
+    category: 'ຕະຫຼົກ / ມີມ',
     timestamp: '2m'
   },
   {
-    id: 'funny-3',
-    title: 'Tài khoản ngân hàng',
-    caption: 'Tiền không tự sinh ra và cũng không tự mất đi, nó chỉ chuyển từ ví tôi sang quán trà sữa 🧋💸',
-    category: 'Hài hước / Meme',
+    id: 'lao-funny-2',
+    title: 'ນອນໄວຕື່ນເຊົ້າ',
+    caption: 'ສັນຍາກັບໂຕເອງວ່າຄືນນີ້ຊິນອນໄວ 10 ໂມງ... ຕັດພາບມາຕອນນີ້ຕີ 3 ຍັງນອນເບິ່ງຄລິບອາຫານຢູ່ 🥲🍲',
+    category: 'ຕະຫຼົກ / ມີມ',
     timestamp: '5m'
   },
   {
-    id: 'love-1',
-    title: 'Thả thính nhẹ',
-    caption: 'Trái tim em chỉ mở cửa 1 lần, ai ngờ anh lại vào bằng cửa sổ ❤️✨',
-    category: 'Thả thính / Quotes',
+    id: 'lao-funny-3',
+    title: 'ສາຍດື່ມສາຍຊິວ',
+    caption: 'ບອກວ່າກິນແກ້ວດຽວພໍ... ແຕ່ແກ້ວຂະໜາດ 1 ລິດ 🍻🤣',
+    category: 'ຕະຫຼົກ / ມີມ',
+    timestamp: '10m'
+  },
+  {
+    id: 'lao-love-1',
+    title: 'ຄຳຄົມຄວາມຮັກ',
+    caption: 'ຫົວໃຈຂ້ອຍເປີດປະຕູຮັບຄົນດຽວ ແຕ່ເຈົ້າພັດປີນເຂົ້າທາງປ່ອງຢ້ຽມ ❤️✨',
+    category: 'ຄວາມຮັກ / ຄຳຄົມ',
     timestamp: 'now'
   }
 ];

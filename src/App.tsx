@@ -68,14 +68,14 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500 font-lao">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
             <span>Khamko Caption & Meme Image Generator</span>
           </div>
           <p className="flex items-center gap-1">
-            Thiết kế riêng cho <strong className="text-slate-400">Khamko Production</strong>
+            ອອກແບບພິເສດສະເພາະສຳລັບ <strong className="text-slate-400">Khamko Production</strong>
           </p>
         </div>
       </footer>

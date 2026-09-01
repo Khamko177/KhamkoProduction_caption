@@ -16,8 +16,8 @@ export const PresetSelector: React.FC<PresetSelectorProps> = ({
     <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-3">
       <div className="flex items-center gap-2 pb-2 border-b border-slate-800/70">
         <Flame className="w-4 h-4 text-orange-400" />
-        <h3 className="text-xs font-semibold text-slate-200 tracking-wide uppercase">
-          Mẫu Caption gợi ý & Kinh điển (Click để dùng ngay)
+        <h3 className="text-xs font-semibold text-slate-200 tracking-wide uppercase font-lao">
+          ຕົວຢ່າງແຄັບຊັ່ນຍອດຮິດ & ຕະຫຼົກ (ຄລິກເພື່ອເລືອກ)
         </h3>
       </div>
 
@@ -36,14 +36,14 @@ export const PresetSelector: React.FC<PresetSelectorProps> = ({
               }`}
             >
               <div className="flex items-center justify-between w-full">
-                <span className="text-[11px] font-semibold text-blue-400 font-mono">
+                <span className="text-[11px] font-semibold text-blue-400 font-mono font-lao">
                   {item.title}
                 </span>
-                <span className="text-[10px] text-slate-500 bg-slate-800/60 px-1.5 py-0.5 rounded">
+                <span className="text-[10px] text-slate-400 bg-slate-800/60 px-1.5 py-0.5 rounded font-lao">
                   {item.category}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 line-clamp-2 leading-snug group-hover:text-white transition-colors">
+              <p className="text-xs text-slate-300 line-clamp-2 leading-snug group-hover:text-white transition-colors font-lao">
                 {item.caption}
               </p>
             </button>

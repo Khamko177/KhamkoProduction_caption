@@ -90,7 +90,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
       });
       setTimeout(() => setCopied(false), 2500);
     } else {
-      alert('Trình duyệt chưa hỗ trợ sao chép ảnh trực tiếp. Vui lòng bấm nút Tải ảnh PNG nhé!');
+      alert('ບຣາວເຊີຂອງທ່ານຍັງບໍ່ຮອງຮັບການກັອບປີ້ຮູບໂດຍກົງ. ກະລຸນາກົດປຸ່ມ ດາວໂຫຼດຮູບ PNG ແທນເດີ!');
     }
   };
 
@@ -99,15 +99,15 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/70">
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4 text-emerald-400" />
-          <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase">
-            Hình ảnh hiển thị (Live Preview)
+          <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase font-lao">
+            ຮູບຕົວຢ່າງ (Live Preview)
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
             {resolution.width} × {resolution.height}px
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-lao">
             HD 100%
           </span>
         </div>
@@ -123,9 +123,9 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             className="w-full max-w-full max-h-[480px] object-contain rounded-lg shadow-2xl transition-all select-none pointer-events-auto"
           />
         ) : (
-          <div className="flex items-center gap-2 text-slate-500 text-sm py-16">
+          <div className="flex items-center gap-2 text-slate-500 text-sm py-16 font-lao">
             <Sparkles className="w-5 h-5 animate-spin text-blue-500" />
-            <span>Đang vẽ hình ảnh...</span>
+            <span>ກຳລັງສ້າງຮູບພາບ...</span>
           </div>
         )}
       </div>
@@ -135,7 +135,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
           <button
             type="button"
             onClick={handleCopyClipboard}
-            className={`w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer ${
+            className={`w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 cursor-pointer font-lao ${
               copied
                 ? 'bg-emerald-600 text-white shadow-emerald-600/30'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700/80 hover:border-slate-600'
@@ -144,12 +144,12 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-white" />
-                <span>Đã sao chép vào Clipboard!</span>
+                <span>ສຳເນົາຮູບແລ້ວ!</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4 text-blue-400" />
-                <span>Copy ảnh (Dán ngay)</span>
+                <span>ສຳເນົາຮູບ (Copy ຮູບ)</span>
               </>
             )}
           </button>
@@ -158,15 +158,15 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             type="button"
             onClick={() => handleDownload('png')}
             disabled={downloading}
-            className="w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
+            className="w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer font-lao"
           >
             <Download className="w-4 h-4" />
-            <span>{downloading ? 'Đang xuất file...' : 'Tải ảnh PNG (Chuẩn HD)'}</span>
+            <span>{downloading ? 'ກຳລັງດາວໂຫຼດ...' : 'ດາວໂຫຼດຮູບ PNG (HD)'}</span>
           </button>
         </div>
 
-        <p className="text-center text-[11px] text-slate-500 pt-1">
-          Mẹo: Bấm <strong className="text-slate-400">Copy ảnh</strong> rồi qua Facebook/Zalo nhấn <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Ctrl + V</kbd> để đăng ngay mà không cần tải file!
+        <p className="text-center text-[11px] text-slate-500 pt-1 font-lao">
+          💡 ຄຳແນະນຳ: ກົດ <strong className="text-slate-400">ສຳເນົາຮູບ (Copy)</strong> ແລ້ວໄປທີ່ Facebook / WhatsApp ກົດ <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Ctrl + V</kbd> ເພື່ອໂພສໄດ້ທັນທີ!
         </p>
       </div>
     </div>

@@ -49,30 +49,30 @@ export const EditorForm: React.FC<EditorFormProps> = ({
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/70">
         <div className="flex items-center gap-2">
           <Type className="w-4 h-4 text-blue-400" />
-          <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase">
-            Nội dung & Tùy chỉnh
+          <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase font-lao">
+            ເນື້ອຫາ & ປັບແຕ່ງ
           </h2>
         </div>
         <button
           type="button"
           onClick={onReset}
-          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
-          title="Đặt lại mặc định"
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer font-lao"
+          title="ຣີເຊັດເປັນຄ່າເລີ່ມຕົ້ນ"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Đặt lại</span>
+          <span>ຣີເຊັດ</span>
         </button>
       </div>
 
       {/* 1. Main Caption Input */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-            <span>Nội dung Caption (Text chính)</span>
+          <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 font-lao">
+            <span>ເນື້ອຫາແຄັບຊັ່ນ (Caption ຫຼັກ)</span>
             <span className="text-red-400">*</span>
           </label>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {config.caption.length} ký tự
+          <span className="text-[11px] text-slate-500 font-mono font-lao">
+            {config.caption.length} ຕົວອັກສອນ
           </span>
         </div>
 
@@ -81,8 +81,8 @@ export const EditorForm: React.FC<EditorFormProps> = ({
           rows={4}
           value={config.caption}
           onChange={(e) => onChange({ caption: e.target.value })}
-          placeholder="Nhập nội dung caption tại đây... (Hỗ trợ tiếng Lào, tiếng Việt, tiếng Anh và Emoji)"
-          className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl px-4 py-3 text-sm sm:text-base text-slate-100 placeholder-slate-500 resize-y transition-all font-sans leading-relaxed outline-none"
+          placeholder="ພິມເນື້ອຫາແຄັບຊັ່ນຢູ່ນີ້... (ຮອງຮັບພາສາລາວ, ໄທ, ອັງກິດ ແລະ ອີໂມຈິ)"
+          className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 rounded-xl px-4 py-3 text-sm sm:text-base text-slate-100 placeholder-slate-500 resize-y transition-all font-lao leading-relaxed outline-none"
         />
 
         {/* Quick Emoji Bar */}
@@ -92,39 +92,39 @@ export const EditorForm: React.FC<EditorFormProps> = ({
       {/* 2. Sender Name & Timestamp Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5 font-lao">
             <LayoutTemplate className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Tên hiển thị (Header)</span>
+            <span>ຊື່ຜູ້ສົ່ງ (Header)</span>
           </label>
           <input
             type="text"
             value={config.pageTitle}
             onChange={(e) => onChange({ pageTitle: e.target.value })}
             placeholder="Khamko Production"
-            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all"
+            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all font-lao"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5 font-lao">
             <Clock className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Thời gian (Timestamp)</span>
+            <span>ເວລາ (Timestamp)</span>
           </label>
           <input
             type="text"
             value={config.timestamp}
             onChange={(e) => onChange({ timestamp: e.target.value })}
-            placeholder="now, 1m, vừa xong..."
-            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all"
+            placeholder="now, 1m, ດຽວນີ້..."
+            className="w-full bg-slate-950/80 border border-slate-700/80 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 rounded-xl px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition-all font-lao"
           />
         </div>
       </div>
 
       {/* 3. App Type Selector */}
       <div className="space-y-2">
-        <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+        <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5 font-lao">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>Biểu tượng Ứng dụng (App Icon)</span>
+          <span>ໄອຄອນແອັບ (App Icon)</span>
         </label>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
           {[
@@ -155,11 +155,11 @@ export const EditorForm: React.FC<EditorFormProps> = ({
         {/* Font size control */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+            <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5 font-lao">
               <Sliders className="w-3.5 h-3.5 text-blue-400" />
-              <span>Cỡ chữ Caption:</span>
-              <span className="text-xs font-mono text-blue-400 font-bold">
-                {config.autoFontSize ? 'Tự động (Auto)' : `${config.fontSize}px`}
+              <span>ຂະໜາດໂຕໜັງສື:</span>
+              <span className="text-xs font-mono text-blue-400 font-bold font-lao">
+                {config.autoFontSize ? 'ອັດຕະໂນມັດ (Auto)' : `${config.fontSize}px`}
               </span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -169,7 +169,7 @@ export const EditorForm: React.FC<EditorFormProps> = ({
                 onChange={(e) => onChange({ autoFontSize: e.target.checked })}
                 className="rounded bg-slate-950 border-slate-700 text-blue-600 focus:ring-0 w-3.5 h-3.5"
               />
-              <span className="text-xs text-slate-400">Tự chỉnh theo độ dài</span>
+              <span className="text-xs text-slate-400 font-lao">ປັບອັດຕະໂນມັດຕາມຄວາມຍາວ</span>
             </label>
           </div>
 
@@ -188,15 +188,15 @@ export const EditorForm: React.FC<EditorFormProps> = ({
 
         {/* Aspect Ratio */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
+          <label className="text-xs font-medium text-slate-300 flex items-center gap-1.5 font-lao">
             <Ratio className="w-3.5 h-3.5 text-purple-400" />
-            <span>Tỷ lệ khung hình</span>
+            <span>ອັດຕາສ່ວນຮູບພາບ (Aspect Ratio)</span>
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 font-lao">
             {[
-              { id: 'original', label: 'Chuẩn Gốc (Mẫu)' },
-              { id: '1:1', label: 'Vuông 1:1' },
-              { id: '16:9', label: 'Ngang 16:9' },
+              { id: 'original', label: 'ຕົ້ນສະບັບ (Original)' },
+              { id: '1:1', label: 'ສີ່ຫຼ່ຽມ 1:1' },
+              { id: '16:9', label: 'ລວງນອນ 16:9' },
             ].map((ratio) => (
               <button
                 key={ratio.id}

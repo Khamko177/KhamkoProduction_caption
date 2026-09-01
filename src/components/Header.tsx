@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { MessageSquareText, Sparkles, Image as ImageIcon } from 'lucide-react';
+import React from 'react';
+import { MessageSquareText, Sparkles } from 'lucide-react';
 
 export const Header: React.FC = () => {
   return (
@@ -11,23 +11,23 @@ export const Header: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2 font-lao">
                 Khamko Production
-                <span className="px-2 py-0.5 text-[11px] font-semibold bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-400 border border-blue-500/30 rounded-full">
-                  Studio Meme
+                <span className="px-2 py-0.5 text-[11px] font-semibold bg-gradient-to-r from-blue-500/20 to-indigo-500/20 text-blue-400 border border-blue-500/30 rounded-full font-lao">
+                  ສະຕູດິໂອ ມີມ
                 </span>
               </h1>
             </div>
-            <p className="text-xs text-slate-400 font-medium">
-              Trình tạo ảnh Caption & Thông báo chuyên nghiệp
+            <p className="text-xs text-slate-400 font-medium font-lao">
+              ລະບົບສ້າງຮູບພາບແຄັບຊັ່ນ ແລະ ແຈ້ງເຕືອນແບບມືອາຊີບ
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 border border-slate-700/60 px-3 py-1.5 rounded-lg">
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 bg-slate-800/60 border border-slate-700/60 px-3 py-1.5 rounded-lg font-lao">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Tự động căn chỉnh & Xuất ảnh chuẩn HD</span>
+            <span>ຈັດຂໍ້ຄວາມອັດຕະໂນມັດ & ຄົມຊັດລະດັບ HD</span>
           </div>
         </div>
       </div>
