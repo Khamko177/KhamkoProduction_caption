@@ -24,7 +24,12 @@ import {
   Plus,
   Trash2,
   ArrowLeftRight,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Image as ImageIcon,
+  Upload,
+  X,
+  Eye,
+  Sun
 } from 'lucide-react';
 
 interface EditorFormProps {
@@ -44,6 +49,27 @@ export const EditorForm: React.FC<EditorFormProps> = ({
   ];
 
   const chatInputRefs = useRef<{ [key: string]: HTMLTextAreaElement | null }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Background Image Handlers
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        onChange({ customBgUrl: result });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveBackground = () => {
+    onChange({ customBgUrl: null });
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   // 1. Notification Handlers
   const handleUpdateNotification = (
@@ -188,6 +214,126 @@ export const EditorForm: React.FC<EditorFormProps> = ({
             <span>ແຊັດ 2 ຂ້າງ (Messenger Chat)</span>
           </button>
         </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 🖼️ BACKGROUND CUSTOMIZATION SECTION (AVAILABLE FOR BOTH TEMPLATES)         */}
+      {/* ========================================================================= */}
+      <div className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/90 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5 font-lao">
+            <ImageIcon className="w-4 h-4 text-emerald-400" />
+            <span>ຮູບພື້ນຫຼັງ (Background Image):</span>
+          </label>
+          <span className="text-[11px] font-medium text-slate-400 font-lao">
+            {config.customBgUrl ? 'ຮູບພື້ນຫຼັງກຳນົດເອງ' : 'ສີດຳເລີ່ມຕົ້ນ (Default Black)'}
+          </span>
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileUpload}
+          className="hidden"
+        />
+
+        <div className="grid grid-cols-2 gap-2.5 font-lao">
+          <button
+            type="button"
+            onClick={handleRemoveBackground}
+            className={`py-2 px-3 rounded-lg text-xs font-medium border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              !config.customBgUrl
+                ? 'bg-slate-800 border-slate-600 text-white shadow-sm'
+                : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700'
+            }`}
+          >
+            <div className="w-3.5 h-3.5 rounded-full bg-black border border-slate-600" />
+            <span>ສີດຳເລີ່ມຕົ້ນ (Black)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              config.customBgUrl
+                ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300'
+                : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white'
+            }`}
+          >
+            <Upload className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{config.customBgUrl ? 'ປ່ຽນຮູບໃໝ່' : 'ເລືອກຮູບຈາກເຄື່ອງ'}</span>
+          </button>
+        </div>
+
+        {/* Custom Background Settings when image is uploaded */}
+        {config.customBgUrl && (
+          <div className="pt-3 border-t border-slate-800/80 space-y-3">
+            {/* Thumbnail Preview */}
+            <div className="flex items-center justify-between bg-slate-900/80 p-2 rounded-lg border border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src={config.customBgUrl}
+                  alt="Custom Background"
+                  className="w-10 h-10 object-cover rounded-md border border-slate-700"
+                />
+                <span className="text-xs text-slate-300 font-lao">ໄດ້ເລືອກຮູບພື້ນຫຼັງແລ້ວ</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveBackground}
+                className="text-xs text-red-400 hover:text-red-300 p-1 rounded hover:bg-red-500/10 transition-colors flex items-center gap-1 cursor-pointer font-lao"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>ລຶບຮູບ</span>
+              </button>
+            </div>
+
+            {/* Darkness Overlay Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-slate-300 font-lao">
+                <span className="flex items-center gap-1">
+                  <Sun className="w-3 h-3 text-amber-400" />
+                  <span>ຄວາມມືດພື້ນຫຼັງ (Darkness):</span>
+                </span>
+                <span className="font-mono text-blue-400 font-bold">
+                  {Math.round(config.bgOverlayOpacity * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={0.9}
+                step={0.05}
+                value={config.bgOverlayOpacity}
+                onChange={(e) => onChange({ bgOverlayOpacity: Number(e.target.value) })}
+                className="w-full accent-blue-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+              />
+            </div>
+
+            {/* Blur Slider */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-slate-300 font-lao">
+                <span className="flex items-center gap-1">
+                  <Eye className="w-3 h-3 text-cyan-400" />
+                  <span>ຄວາມມົວພື້ນຫຼັງ (Blur):</span>
+                </span>
+                <span className="font-mono text-cyan-400 font-bold">
+                  {config.bgBlur || 0}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={25}
+                step={1}
+                value={config.bgBlur || 0}
+                onChange={(e) => onChange({ bgBlur: Number(e.target.value) })}
+                className="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}

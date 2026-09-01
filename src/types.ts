@@ -21,6 +21,11 @@ export interface ChatMessage {
 export interface CaptionConfig {
   templateType: TemplateType;
   
+  // Background Customization
+  customBgUrl?: string | null;
+  bgOverlayOpacity: number; // 0 to 1
+  bgBlur: number; // 0 to 30
+
   // Notification Mode Settings
   mode: 'single' | 'double';
   notifications: NotificationItem[];

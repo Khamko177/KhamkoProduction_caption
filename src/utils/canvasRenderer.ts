@@ -6,6 +6,95 @@ import {
 } from '../types';
 
 /**
+ * Image Cache for fast rendering
+ */
+const imageCache = new Map<string, HTMLImageElement>();
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  if (imageCache.has(src)) {
+    const cached = imageCache.get(src)!;
+    if (cached.complete && cached.naturalWidth > 0) {
+      return Promise.resolve(cached);
+    }
+  }
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      imageCache.set(src, img);
+      resolve(img);
+    };
+    img.onerror = (err) => reject(err);
+    img.src = src;
+  });
+}
+
+/**
+ * Draw background: Solid black or Custom image with cover & overlay
+ */
+async function drawCanvasBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  config: CaptionConfig
+) {
+  if (config.customBgUrl) {
+    try {
+      const bgImg = await loadImage(config.customBgUrl);
+      ctx.save();
+
+      // Apply blur if requested
+      if (config.bgBlur && config.bgBlur > 0) {
+        ctx.filter = `blur(${config.bgBlur}px)`;
+      }
+
+      // Proportional Cover scale
+      const imgRatio = bgImg.width / bgImg.height;
+      const canvasRatio = width / height;
+      let renderW = width;
+      let renderH = height;
+      let renderX = 0;
+      let renderY = 0;
+
+      if (imgRatio > canvasRatio) {
+        renderH = height;
+        renderW = height * imgRatio;
+        renderX = (width - renderW) / 2;
+      } else {
+        renderW = width;
+        renderH = width / imgRatio;
+        renderY = (height - renderH) / 2;
+      }
+
+      // Add slight padding to prevent blur edges from showing transparent
+      const expand = config.bgBlur ? config.bgBlur * 2 : 0;
+      ctx.drawImage(
+        bgImg,
+        renderX - expand / 2,
+        renderY - expand / 2,
+        renderW + expand,
+        renderH + expand
+      );
+      ctx.restore();
+
+      // Dark Overlay so text is readable
+      const opacity = typeof config.bgOverlayOpacity === 'number' ? config.bgOverlayOpacity : 0.4;
+      if (opacity > 0) {
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.fillRect(0, 0, width, height);
+      }
+      return;
+    } catch (err) {
+      console.warn('Could not load custom background image, fallback to black', err);
+    }
+  }
+
+  // Default Solid Black Background
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, width, height);
+}
+
+/**
  * Draw a rounded rectangle with smooth corners
  */
 function drawRoundedRect(
@@ -186,7 +275,7 @@ function drawAppIcon(
 }
 
 /**
- * Draw Messenger Bottom Bar (Camera, Gallery, Mic, Aa Input, Like button)
+ * Draw Messenger Bottom Bar
  */
 function drawMessengerBottomBar(
   ctx: CanvasRenderingContext2D,
@@ -197,35 +286,30 @@ function drawMessengerBottomBar(
   const barHeight = 110;
   const startY = bottomY - barHeight;
 
-  // Background
-  ctx.fillStyle = '#000000';
+  // Background with subtle transparency
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
   ctx.fillRect(0, startY, width, barHeight);
 
   const iconBlue = '#0084FF';
-  const iconSize = 44;
   const centerY = startY + barHeight / 2;
 
-  // 1. Camera Icon (left 50px)
+  // 1. Camera Icon
   let currentX = 52;
   ctx.fillStyle = iconBlue;
-  // Camera body
   drawRoundedRect(ctx, currentX, centerY - 18, 42, 34, 8);
   ctx.fill();
-  // Camera top bump
   drawRoundedRect(ctx, currentX + 11, centerY - 24, 20, 10, 3);
   ctx.fill();
-  // Lens
   ctx.fillStyle = '#000000';
   ctx.beginPath();
   ctx.arc(currentX + 21, centerY - 1, 9, 0, Math.PI * 2);
   ctx.fill();
 
-  // 2. Photo Gallery Icon (left ~126px)
+  // 2. Photo Gallery Icon
   currentX += 74;
   ctx.fillStyle = iconBlue;
   drawRoundedRect(ctx, currentX, centerY - 20, 42, 38, 8);
   ctx.fill();
-  // Mountain/Sun in gallery
   ctx.fillStyle = '#000000';
   ctx.beginPath();
   ctx.arc(currentX + 13, centerY - 10, 4, 0, Math.PI * 2);
@@ -237,13 +321,11 @@ function drawMessengerBottomBar(
   ctx.closePath();
   ctx.fill();
 
-  // 3. Microphone Icon (left ~200px)
+  // 3. Microphone Icon
   currentX += 74;
   ctx.fillStyle = iconBlue;
-  // Mic head
   drawRoundedRect(ctx, currentX + 12, centerY - 22, 16, 26, 8);
   ctx.fill();
-  // Mic holder
   ctx.lineWidth = 4;
   ctx.strokeStyle = iconBlue;
   ctx.beginPath();
@@ -254,10 +336,9 @@ function drawMessengerBottomBar(
   ctx.lineTo(currentX + 20, centerY + 14);
   ctx.stroke();
 
-  // 4. Like (Thumbs up) Icon on far right
+  // 4. Like Icon
   const rightX = width - 52 - 40;
   ctx.fillStyle = iconBlue;
-  // Thumbs up vector shape
   ctx.beginPath();
   ctx.moveTo(rightX + 4, centerY + 16);
   ctx.lineTo(rightX + 14, centerY + 16);
@@ -277,7 +358,7 @@ function drawMessengerBottomBar(
   ctx.closePath();
   ctx.fill();
 
-  // 5. Middle Input Capsule ("Aa" + Smile emoji)
+  // 5. Input Capsule
   const inputX = currentX + 64;
   const inputWidth = rightX - inputX - 24;
   const inputHeight = 62;
@@ -287,20 +368,17 @@ function drawMessengerBottomBar(
   drawRoundedRect(ctx, inputX, inputY, inputWidth, inputHeight, inputHeight / 2);
   ctx.fill();
 
-  // Placeholder "Aa"
   ctx.font = '500 28px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
   ctx.fillStyle = '#8e8e93';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillText('Aa', inputX + 28, centerY);
 
-  // Smile emoji inside capsule on right
   const smileX = inputX + inputWidth - 36;
   ctx.fillStyle = iconBlue;
   ctx.beginPath();
   ctx.arc(smileX, centerY, 16, 0, Math.PI * 2);
   ctx.fill();
-  // Eyes & mouth
   ctx.fillStyle = '#242526';
   ctx.beginPath();
   ctx.arc(smileX - 5, centerY - 4, 2, 0, Math.PI * 2);
@@ -360,7 +438,6 @@ async function renderChatCanvas(
     const msg = messages[i];
     const lines = wrapText(ctx, msg.text || '...', maxBubbleWidth - bubblePaddingX * 2);
     
-    // Calculate width
     let longestLineWidth = 0;
     for (const line of lines) {
       const w = ctx.measureText(line).width;
@@ -386,7 +463,6 @@ async function renderChatCanvas(
 
   const bottomBarHeight = config.showBottomBar ? 120 : 0;
   
-  // Calculate canvas height
   let canvasHeight = 900;
   if (config.aspectRatio === '1:1') {
     canvasHeight = 1284;
@@ -399,11 +475,10 @@ async function renderChatCanvas(
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // 1. Solid Black Background
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // 1. Draw Background (Solid Black or Custom Image with Overlay & Blur)
+  await drawCanvasBackground(ctx, canvasWidth, canvasHeight, config);
 
-  // 2. Calculate vertical starting point
+  // 2. Center vertically
   const availableHeight = canvasHeight - bottomBarHeight;
   const startY = Math.max(50, Math.round((availableHeight - totalMessagesHeight) / 2));
 
@@ -419,13 +494,11 @@ async function renderChatCanvas(
       : paddingX;
     const bubbleY = currentY;
 
-    // Draw Bubble
     ctx.save();
     const bubbleRadius = 34;
     drawRoundedRect(ctx, bubbleX, bubbleY, bubbleWidth, bubbleHeight, bubbleRadius);
 
     if (isRight) {
-      // Messenger Blue gradient
       const blueGrad = ctx.createLinearGradient(
         bubbleX,
         bubbleY,
@@ -436,12 +509,17 @@ async function renderChatCanvas(
       blueGrad.addColorStop(1, '#0070FF');
       ctx.fillStyle = blueGrad;
     } else {
-      // Messenger Left Grey
-      ctx.fillStyle = '#262628';
+      ctx.fillStyle = config.customBgUrl ? 'rgba(38, 38, 40, 0.94)' : '#262628';
     }
     ctx.fill();
 
-    // Draw text inside
+    // Subtle border on custom bg
+    if (config.customBgUrl && !isRight) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
     ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
@@ -457,7 +535,7 @@ async function renderChatCanvas(
     currentY += bubbleHeight + marginBottom;
   }
 
-  // 4. Draw Bottom Action Bar if enabled
+  // 4. Draw Bottom Action Bar
   if (config.showBottomBar) {
     drawMessengerBottomBar(ctx, canvasWidth, canvasHeight);
   }
@@ -555,9 +633,8 @@ async function renderNotificationCanvas(
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // Solid Black
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+  // 1. Draw Background (Solid Black or Custom Image with Overlay & Blur)
+  await drawCanvasBackground(ctx, canvasWidth, canvasHeight, config);
 
   let currentCardY = Math.round((canvasHeight - totalCardsHeight) / 2);
 
@@ -571,8 +648,8 @@ async function renderNotificationCanvas(
     const cardRadius = 50;
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius);
 
-    if (config.cardTheme === 'glass') {
-      ctx.fillStyle = 'rgba(32, 33, 36, 0.92)';
+    if (config.cardTheme === 'glass' || config.customBgUrl) {
+      ctx.fillStyle = 'rgba(28, 28, 30, 0.88)';
     } else if (config.cardTheme === 'pitchBlack') {
       ctx.fillStyle = '#141415';
     } else {
@@ -580,7 +657,9 @@ async function renderNotificationCanvas(
     }
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+    ctx.strokeStyle = config.customBgUrl
+      ? 'rgba(255, 255, 255, 0.15)'
+      : 'rgba(255, 255, 255, 0.09)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();

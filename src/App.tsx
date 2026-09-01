@@ -6,7 +6,10 @@ import { ImagePreview } from './components/ImagePreview';
 import { Sparkles } from 'lucide-react';
 
 const DEFAULT_CONFIG: CaptionConfig = {
-  templateType: 'chat', // default to chat mode as requested, easily switched
+  templateType: 'chat',
+  customBgUrl: null,
+  bgOverlayOpacity: 0.4,
+  bgBlur: 0,
   mode: 'double',
   notifications: [
     {
