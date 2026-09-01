@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { CaptionConfig, PresetItem } from './types';
+import { CaptionConfig } from './types';
 import { Header } from './components/Header';
 import { EditorForm } from './components/EditorForm';
 import { ImagePreview } from './components/ImagePreview';
-import { PresetSelector } from './components/PresetSelector';
 import { Sparkles } from 'lucide-react';
 
 const DEFAULT_CONFIG: CaptionConfig = {
@@ -28,14 +27,6 @@ export const App: React.FC = () => {
     setConfig(DEFAULT_CONFIG);
   };
 
-  const handleSelectPreset = (preset: PresetItem) => {
-    setConfig((prev) => ({
-      ...prev,
-      caption: preset.caption,
-      timestamp: preset.timestamp || 'now',
-    }));
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-[#070b14] text-slate-100 selection:bg-blue-600 selection:text-white font-sans">
       {/* Top Header */}
@@ -45,17 +36,12 @@ export const App: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           
-          {/* Left Column: Form & Presets */}
+          {/* Left Column: Form Controls */}
           <div className="lg:col-span-6 space-y-6">
             <EditorForm
               config={config}
               onChange={handleConfigChange}
               onReset={handleReset}
-            />
-
-            <PresetSelector
-              onSelectPreset={handleSelectPreset}
-              currentCaption={config.caption}
             />
           </div>
 
