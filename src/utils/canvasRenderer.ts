@@ -1,4 +1,4 @@
-import { CaptionConfig, AppType } from '../types';
+import { CaptionConfig, AppType, NotificationItem } from '../types';
 
 /**
  * Draw a rounded rectangle with smooth corners
@@ -185,7 +185,7 @@ function drawAppIcon(
 }
 
 /**
- * Main Render Engine to draw the Meme/Caption Image
+ * Main Render Engine to draw Single or Multiple Notifications
  */
 export async function renderCaptionCanvas(
   canvas: HTMLCanvasElement,
@@ -196,59 +196,88 @@ export async function renderCaptionCanvas(
 
   try {
     await document.fonts.ready;
-  } catch (e) {
-    // font ready fallback
-  }
+  } catch (e) {}
 
   const canvasWidth = 1284;
   const cardMarginX = 52;
   const cardWidth = canvasWidth - cardMarginX * 2; // 1180px
   const cardPaddingX = 40;
-  const cardPaddingY = 38;
+  const cardPaddingY = 36;
   const iconSize = 92;
   const gapBetweenIconAndText = 24;
+  const gapBetweenCards = 22;
 
   const contentX = cardMarginX + cardPaddingX + iconSize + gapBetweenIconAndText;
   const maxContentWidth = cardMarginX + cardWidth - cardPaddingX - contentX;
 
   const primaryFontFamily = `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
 
-  let bodyFontSize = config.fontSize || 38;
-  if (config.autoFontSize) {
-    const textLen = (config.caption || '').length;
-    if (textLen < 35) {
-      bodyFontSize = 40;
-    } else if (textLen < 85) {
-      bodyFontSize = 38;
-    } else if (textLen < 150) {
-      bodyFontSize = 34;
-    } else {
-      bodyFontSize = 30;
-    }
-  }
+  const activeNotifications: NotificationItem[] =
+    config.mode === 'double'
+      ? config.notifications.slice(0, 2)
+      : config.notifications.slice(0, 1);
 
-  ctx.font = `500 ${bodyFontSize}px ${primaryFontFamily}`;
-  const lines = wrapText(ctx, config.caption || '...', maxContentWidth);
-  const lineSpacing = bodyFontSize * 1.42;
-
+  // Calculate dimensions for each card
   const titleFontSize = 34;
   const timeFontSize = 28;
   const headerHeight = 36;
   const gapHeaderToBody = 18;
 
-  const bodyTextHeight = Math.max(1, lines.length) * lineSpacing;
-  const totalContentHeight = headerHeight + gapHeaderToBody + bodyTextHeight;
-  const minCardHeight = iconSize + cardPaddingY * 2;
-  const cardHeight = Math.max(minCardHeight, totalContentHeight + cardPaddingY * 2);
+  interface CardComputed {
+    notification: NotificationItem;
+    lines: string[];
+    fontSize: number;
+    lineSpacing: number;
+    cardHeight: number;
+  }
 
+  const computedCards: CardComputed[] = activeNotifications.map((notif) => {
+    let bodyFontSize = config.fontSize || 38;
+    if (config.autoFontSize) {
+      const textLen = (notif.caption || '').length;
+      if (textLen < 35) {
+        bodyFontSize = config.mode === 'double' ? 38 : 40;
+      } else if (textLen < 85) {
+        bodyFontSize = config.mode === 'double' ? 36 : 38;
+      } else if (textLen < 150) {
+        bodyFontSize = 32;
+      } else {
+        bodyFontSize = 28;
+      }
+    }
+
+    ctx.font = `500 ${bodyFontSize}px ${primaryFontFamily}`;
+    const lines = wrapText(ctx, notif.caption || '...', maxContentWidth);
+    const lineSpacing = bodyFontSize * 1.42;
+
+    const bodyTextHeight = Math.max(1, lines.length) * lineSpacing;
+    const totalContentHeight = headerHeight + gapHeaderToBody + bodyTextHeight;
+    const minCardHeight = iconSize + cardPaddingY * 2;
+    const cardHeight = Math.max(minCardHeight, totalContentHeight + cardPaddingY * 2);
+
+    return {
+      notification: notif,
+      lines,
+      fontSize: bodyFontSize,
+      lineSpacing,
+      cardHeight,
+    };
+  });
+
+  const totalCardsHeight =
+    computedCards.reduce((acc, c) => acc + c.cardHeight, 0) +
+    gapBetweenCards * Math.max(0, computedCards.length - 1);
+
+  // Canvas height calculation
   let canvasHeight = 900;
   if (config.aspectRatio === '1:1') {
     canvasHeight = 1284;
   } else if (config.aspectRatio === '16:9') {
     canvasHeight = Math.round((1284 * 9) / 16);
   } else {
-    canvasHeight = Math.max(860, cardHeight + 650);
-    if (canvasHeight < 860) canvasHeight = 860;
+    // Original Auto height
+    const baseHeight = config.mode === 'double' ? 960 : 860;
+    canvasHeight = Math.max(baseHeight, totalCardsHeight + (config.mode === 'double' ? 440 : 640));
   }
 
   canvas.width = canvasWidth;
@@ -258,66 +287,75 @@ export async function renderCaptionCanvas(
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // 2. Card Position
-  const cardX = cardMarginX;
-  const cardY = Math.round((canvasHeight - cardHeight) / 2);
+  // 2. Center the entire block of cards vertically
+  let currentCardY = Math.round((canvasHeight - totalCardsHeight) / 2);
 
-  // 3. Card Background
-  ctx.save();
-  const cardRadius = 50;
-  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius);
+  // 3. Render each card
+  for (const card of computedCards) {
+    const cardX = cardMarginX;
+    const cardY = currentCardY;
+    const { notification: notif, lines, fontSize, lineSpacing, cardHeight } = card;
 
-  if (config.cardTheme === 'glass') {
-    ctx.fillStyle = 'rgba(32, 33, 36, 0.92)';
-  } else if (config.cardTheme === 'pitchBlack') {
-    ctx.fillStyle = '#141415';
-  } else {
-    ctx.fillStyle = '#1c1c1e';
+    // Card Background
+    ctx.save();
+    const cardRadius = 50;
+    drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius);
+
+    if (config.cardTheme === 'glass') {
+      ctx.fillStyle = 'rgba(32, 33, 36, 0.92)';
+    } else if (config.cardTheme === 'pitchBlack') {
+      ctx.fillStyle = '#141415';
+    } else {
+      ctx.fillStyle = '#1c1c1e';
+    }
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // App Icon
+    const iconX = cardX + cardPaddingX;
+    const iconY = cardY + cardPaddingY;
+    drawAppIcon(ctx, notif.appType || 'messenger', iconX, iconY, iconSize);
+
+    // Header: Title & Timestamp
+    const headerY = iconY + titleFontSize * 0.72;
+
+    ctx.save();
+    ctx.font = `700 ${titleFontSize}px ${primaryFontFamily}`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(notif.pageTitle || 'Khamko Production', contentX, headerY);
+
+    ctx.font = `400 ${timeFontSize}px ${primaryFontFamily}`;
+    ctx.fillStyle = '#8e8e93';
+    ctx.textAlign = 'right';
+    const timeX = cardX + cardWidth - cardPaddingX;
+    ctx.fillText(notif.timestamp || 'now', timeX, headerY);
+    ctx.restore();
+
+    // Body Text
+    ctx.save();
+    ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    let currentLineY = headerY + gapHeaderToBody + fontSize;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      ctx.fillText(line, contentX, currentLineY);
+      currentLineY += lineSpacing;
+    }
+    ctx.restore();
+
+    // Move Y for next card
+    currentCardY += cardHeight + gapBetweenCards;
   }
-  ctx.fill();
-
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.09)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.restore();
-
-  // 4. App Icon
-  const iconX = cardX + cardPaddingX;
-  const iconY = cardY + cardPaddingY;
-  drawAppIcon(ctx, config.appType || 'messenger', iconX, iconY, iconSize);
-
-  // 5. Header: Title & Timestamp
-  const headerY = iconY + titleFontSize * 0.72;
-
-  ctx.save();
-  ctx.font = `700 ${titleFontSize}px ${primaryFontFamily}`;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText(config.pageTitle || 'Khamko Production', contentX, headerY);
-
-  ctx.font = `400 ${timeFontSize}px ${primaryFontFamily}`;
-  ctx.fillStyle = '#8e8e93';
-  ctx.textAlign = 'right';
-  const timeX = cardX + cardWidth - cardPaddingX;
-  ctx.fillText(config.timestamp || 'now', timeX, headerY);
-  ctx.restore();
-
-  // 6. Body Text
-  ctx.save();
-  ctx.font = `500 ${bodyFontSize}px ${primaryFontFamily}`;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-
-  let currentLineY = headerY + gapHeaderToBody + bodyFontSize;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    ctx.fillText(line, contentX, currentLineY);
-    currentLineY += lineSpacing;
-  }
-  ctx.restore();
 }
 
 /**

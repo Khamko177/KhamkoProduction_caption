@@ -6,12 +6,25 @@ import { ImagePreview } from './components/ImagePreview';
 import { Sparkles } from 'lucide-react';
 
 const DEFAULT_CONFIG: CaptionConfig = {
-  pageTitle: 'Khamko Production',
-  timestamp: 'now',
-  caption: 'ບໍ່ແມ່ນຂ້ອຍຖືກເຂົາຫລີ້ນຂອງໃສ່ບໍ? ຄືມາຄິດຮອດເຂົາເຊົ້າແລງແທະ🫠',
-  fontSize: 38,
+  mode: 'double',
+  notifications: [
+    {
+      id: 'notif-1',
+      pageTitle: 'Khamko Production',
+      timestamp: 'now',
+      caption: 'ກົດຂໍ້ 1',
+      appType: 'messenger',
+    },
+    {
+      id: 'notif-2',
+      pageTitle: 'Khamko Production',
+      timestamp: 'now',
+      caption: 'ຫ້າມຕົກຫລຸມຮັກ ສິ່ງທີ່ຮູັ້ຢູ່ແລ້ວ ວ່າບໍ່ມີທາງ ສົມຫວັງ🥀❤️',
+      appType: 'messenger',
+    },
+  ],
+  fontSize: 36,
   autoFontSize: true,
-  appType: 'messenger',
   cardTheme: 'dark',
   aspectRatio: 'original',
 };

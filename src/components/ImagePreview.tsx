@@ -59,9 +59,10 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
       const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
       const dataUrl = exportCanvasAsImage(canvasRef.current, mimeType, 0.95);
 
-      const link = document.createElement('a');
-      const filenameSlug = (config.caption.slice(0, 20) || 'khamko-caption')
+      const firstCaption = config.notifications[0]?.caption || 'khamko-caption';
+      const filenameSlug = (firstCaption.slice(0, 20) || 'khamko-caption')
         .replace(/[^a-zA-Z0-9\u0E80-\u0EFF\u00C0-\u1EF9]/g, '_');
+      const link = document.createElement('a');
       link.download = `khamko_${Date.now()}_${filenameSlug}.${format}`;
       link.href = dataUrl;
       link.click();

@@ -1,18 +1,22 @@
-﻿export type AppType = 'messenger' | 'facebook' | 'instagram' | 'tiktok' | 'messages';
+export type AppType = 'messenger' | 'facebook' | 'instagram' | 'tiktok' | 'messages';
 export type CardTheme = 'dark' | 'glass' | 'pitchBlack';
 export type AspectRatioType = 'auto' | '16:9' | '1:1' | 'original';
 
-export interface CaptionConfig {
+export interface NotificationItem {
+  id: string;
   pageTitle: string;
   timestamp: string;
   caption: string;
+  appType: AppType;
+}
+
+export interface CaptionConfig {
+  mode: 'single' | 'double';
+  notifications: NotificationItem[];
   fontSize: number;
   autoFontSize: boolean;
-  appType: AppType;
   cardTheme: CardTheme;
   aspectRatio: AspectRatioType;
-  customHeight?: number;
-  showVerifiedBadge?: boolean;
 }
 
 export interface PresetItem {
@@ -20,6 +24,5 @@ export interface PresetItem {
   title: string;
   caption: string;
   category: string;
-  author?: string;
   timestamp?: string;
 }
