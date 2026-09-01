@@ -6,6 +6,7 @@ import { ImagePreview } from './components/ImagePreview';
 import { Sparkles } from 'lucide-react';
 
 const DEFAULT_CONFIG: CaptionConfig = {
+  templateType: 'chat', // default to chat mode as requested, easily switched
   mode: 'double',
   notifications: [
     {
@@ -23,7 +24,30 @@ const DEFAULT_CONFIG: CaptionConfig = {
       appType: 'messenger',
     },
   ],
-  fontSize: 36,
+  chatMessages: [
+    {
+      id: 'chat-1',
+      side: 'left',
+      text: 'ບໍ່ເປັນຫຍັງສ່ຽວເຮົາເປັນໝູ່ກັນ',
+    },
+    {
+      id: 'chat-2',
+      side: 'left',
+      text: 'ກູກະຮັກມຶງຄືເກົ່າ',
+    },
+    {
+      id: 'chat-3',
+      side: 'right',
+      text: 'ຄືເກົ່າຫັ້ນແຫລະສ່ຽວ',
+    },
+    {
+      id: 'chat-4',
+      side: 'right',
+      text: 'ວ່າແຕ່ມີຈັກສອງແສນໃຫ້ຢືມບໍສ່ຽວ??',
+    },
+  ],
+  showBottomBar: true,
+  fontSize: 38,
   autoFontSize: true,
   cardTheme: 'dark',
   aspectRatio: 'original',

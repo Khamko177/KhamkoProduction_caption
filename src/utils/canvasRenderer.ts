@@ -1,4 +1,9 @@
-import { CaptionConfig, AppType, NotificationItem } from '../types';
+import {
+  CaptionConfig,
+  AppType,
+  NotificationItem,
+  ChatMessage
+} from '../types';
 
 /**
  * Draw a rounded rectangle with smooth corners
@@ -66,7 +71,7 @@ function wrapText(
 }
 
 /**
- * Draw App Icon (Messenger, Facebook, Instagram, TikTok, Messages)
+ * Draw App Icon for Notifications
  */
 function drawAppIcon(
   ctx: CanvasRenderingContext2D,
@@ -77,7 +82,6 @@ function drawAppIcon(
 ) {
   ctx.save();
 
-  // White squircle container
   const iconRadius = size * 0.22;
   drawRoundedRect(ctx, x, y, size, size, iconRadius);
   ctx.fillStyle = '#FFFFFF';
@@ -88,7 +92,6 @@ function drawAppIcon(
   const innerRadius = (size * 0.76) / 2;
 
   if (appType === 'messenger') {
-    // Messenger circular blue bubble with lightning
     const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
     gradient.addColorStop(0, '#00B2FE');
     gradient.addColorStop(0.5, '#006AFF');
@@ -99,7 +102,6 @@ function drawAppIcon(
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    // Messenger tail
     ctx.beginPath();
     ctx.moveTo(centerX - innerRadius * 0.55, centerY + innerRadius * 0.65);
     ctx.lineTo(centerX - innerRadius * 0.85, centerY + innerRadius * 1.05);
@@ -107,7 +109,6 @@ function drawAppIcon(
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    // White lightning bolt
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
     ctx.moveTo(centerX - size * 0.16, centerY + size * 0.08);
@@ -185,18 +186,292 @@ function drawAppIcon(
 }
 
 /**
- * Main Render Engine to draw Single or Multiple Notifications
+ * Draw Messenger Bottom Bar (Camera, Gallery, Mic, Aa Input, Like button)
  */
-export async function renderCaptionCanvas(
+function drawMessengerBottomBar(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  bottomY: number
+) {
+  ctx.save();
+  const barHeight = 110;
+  const startY = bottomY - barHeight;
+
+  // Background
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, startY, width, barHeight);
+
+  const iconBlue = '#0084FF';
+  const iconSize = 44;
+  const centerY = startY + barHeight / 2;
+
+  // 1. Camera Icon (left 50px)
+  let currentX = 52;
+  ctx.fillStyle = iconBlue;
+  // Camera body
+  drawRoundedRect(ctx, currentX, centerY - 18, 42, 34, 8);
+  ctx.fill();
+  // Camera top bump
+  drawRoundedRect(ctx, currentX + 11, centerY - 24, 20, 10, 3);
+  ctx.fill();
+  // Lens
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(currentX + 21, centerY - 1, 9, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 2. Photo Gallery Icon (left ~126px)
+  currentX += 74;
+  ctx.fillStyle = iconBlue;
+  drawRoundedRect(ctx, currentX, centerY - 20, 42, 38, 8);
+  ctx.fill();
+  // Mountain/Sun in gallery
+  ctx.fillStyle = '#000000';
+  ctx.beginPath();
+  ctx.arc(currentX + 13, centerY - 10, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(currentX + 7, centerY + 10);
+  ctx.lineTo(currentX + 21, centerY - 4);
+  ctx.lineTo(currentX + 35, centerY + 10);
+  ctx.closePath();
+  ctx.fill();
+
+  // 3. Microphone Icon (left ~200px)
+  currentX += 74;
+  ctx.fillStyle = iconBlue;
+  // Mic head
+  drawRoundedRect(ctx, currentX + 12, centerY - 22, 16, 26, 8);
+  ctx.fill();
+  // Mic holder
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = iconBlue;
+  ctx.beginPath();
+  ctx.arc(currentX + 20, centerY - 8, 14, 0, Math.PI);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(currentX + 20, centerY + 6);
+  ctx.lineTo(currentX + 20, centerY + 14);
+  ctx.stroke();
+
+  // 4. Like (Thumbs up) Icon on far right
+  const rightX = width - 52 - 40;
+  ctx.fillStyle = iconBlue;
+  // Thumbs up vector shape
+  ctx.beginPath();
+  ctx.moveTo(rightX + 4, centerY + 16);
+  ctx.lineTo(rightX + 14, centerY + 16);
+  ctx.lineTo(rightX + 14, centerY - 6);
+  ctx.lineTo(rightX + 4, centerY - 6);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(rightX + 18, centerY - 6);
+  ctx.lineTo(rightX + 26, centerY - 22);
+  ctx.lineTo(rightX + 32, centerY - 22);
+  ctx.lineTo(rightX + 30, centerY - 8);
+  ctx.lineTo(rightX + 42, centerY - 8);
+  ctx.lineTo(rightX + 36, centerY + 16);
+  ctx.lineTo(rightX + 18, centerY + 16);
+  ctx.closePath();
+  ctx.fill();
+
+  // 5. Middle Input Capsule ("Aa" + Smile emoji)
+  const inputX = currentX + 64;
+  const inputWidth = rightX - inputX - 24;
+  const inputHeight = 62;
+  const inputY = centerY - inputHeight / 2;
+
+  ctx.fillStyle = '#242526';
+  drawRoundedRect(ctx, inputX, inputY, inputWidth, inputHeight, inputHeight / 2);
+  ctx.fill();
+
+  // Placeholder "Aa"
+  ctx.font = '500 28px -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif';
+  ctx.fillStyle = '#8e8e93';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Aa', inputX + 28, centerY);
+
+  // Smile emoji inside capsule on right
+  const smileX = inputX + inputWidth - 36;
+  ctx.fillStyle = iconBlue;
+  ctx.beginPath();
+  ctx.arc(smileX, centerY, 16, 0, Math.PI * 2);
+  ctx.fill();
+  // Eyes & mouth
+  ctx.fillStyle = '#242526';
+  ctx.beginPath();
+  ctx.arc(smileX - 5, centerY - 4, 2, 0, Math.PI * 2);
+  ctx.arc(smileX + 5, centerY - 4, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(smileX, centerY + 2, 8, 0.2, Math.PI - 0.2);
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#242526';
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Render Chat Messages Canvas
+ */
+async function renderChatCanvas(
   canvas: HTMLCanvasElement,
   config: CaptionConfig
 ): Promise<void> {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
 
-  try {
-    await document.fonts.ready;
-  } catch (e) {}
+  const canvasWidth = 1284;
+  const paddingX = 48;
+  const maxBubbleWidth = 880;
+  const bubblePaddingX = 36;
+  const bubblePaddingY = 22;
+  const primaryFontFamily = `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
+
+  const messages: ChatMessage[] = config.chatMessages && config.chatMessages.length > 0
+    ? config.chatMessages
+    : [
+        { id: '1', side: 'left', text: 'ບໍ່ເປັນຫຍັງສ່ຽວເຮົາເປັນໝູ່ກັນ' },
+        { id: '2', side: 'left', text: 'ກູກະຮັກມຶງຄືເກົ່າ' },
+        { id: '3', side: 'right', text: 'ຄືເກົ່າຫັ້ນແຫລະສ່ຽວ' },
+        { id: '4', side: 'right', text: 'ວ່າແຕ່ມີຈັກສອງແສນໃຫ້ຢືມບໍສ່ຽວ??' }
+      ];
+
+  const fontSize = config.fontSize || 38;
+  const lineSpacing = fontSize * 1.42;
+  ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
+
+  interface ComputedBubble {
+    message: ChatMessage;
+    lines: string[];
+    bubbleWidth: number;
+    bubbleHeight: number;
+    marginBottom: number;
+  }
+
+  const computedBubbles: ComputedBubble[] = [];
+  let totalMessagesHeight = 0;
+
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const lines = wrapText(ctx, msg.text || '...', maxBubbleWidth - bubblePaddingX * 2);
+    
+    // Calculate width
+    let longestLineWidth = 0;
+    for (const line of lines) {
+      const w = ctx.measureText(line).width;
+      if (w > longestLineWidth) longestLineWidth = w;
+    }
+
+    const bubbleWidth = Math.max(120, Math.min(maxBubbleWidth, longestLineWidth + bubblePaddingX * 2));
+    const bubbleHeight = Math.max(76, lines.length * lineSpacing + bubblePaddingY * 2 - 8);
+
+    const isNextSameSide = i < messages.length - 1 && messages[i + 1].side === msg.side;
+    const marginBottom = isNextSameSide ? 10 : 28;
+
+    computedBubbles.push({
+      message: msg,
+      lines,
+      bubbleWidth,
+      bubbleHeight,
+      marginBottom
+    });
+
+    totalMessagesHeight += bubbleHeight + marginBottom;
+  }
+
+  const bottomBarHeight = config.showBottomBar ? 120 : 0;
+  
+  // Calculate canvas height
+  let canvasHeight = 900;
+  if (config.aspectRatio === '1:1') {
+    canvasHeight = 1284;
+  } else if (config.aspectRatio === '16:9') {
+    canvasHeight = Math.round((1284 * 9) / 16);
+  } else {
+    canvasHeight = Math.max(860, totalMessagesHeight + bottomBarHeight + 360);
+  }
+
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // 1. Solid Black Background
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // 2. Calculate vertical starting point
+  const availableHeight = canvasHeight - bottomBarHeight;
+  const startY = Math.max(50, Math.round((availableHeight - totalMessagesHeight) / 2));
+
+  let currentY = startY;
+
+  // 3. Render bubbles
+  for (const item of computedBubbles) {
+    const { message, lines, bubbleWidth, bubbleHeight, marginBottom } = item;
+    const isRight = message.side === 'right';
+
+    const bubbleX = isRight
+      ? canvasWidth - paddingX - bubbleWidth
+      : paddingX;
+    const bubbleY = currentY;
+
+    // Draw Bubble
+    ctx.save();
+    const bubbleRadius = 34;
+    drawRoundedRect(ctx, bubbleX, bubbleY, bubbleWidth, bubbleHeight, bubbleRadius);
+
+    if (isRight) {
+      // Messenger Blue gradient
+      const blueGrad = ctx.createLinearGradient(
+        bubbleX,
+        bubbleY,
+        bubbleX + bubbleWidth,
+        bubbleY + bubbleHeight
+      );
+      blueGrad.addColorStop(0, '#0084FF');
+      blueGrad.addColorStop(1, '#0070FF');
+      ctx.fillStyle = blueGrad;
+    } else {
+      // Messenger Left Grey
+      ctx.fillStyle = '#262628';
+    }
+    ctx.fill();
+
+    // Draw text inside
+    ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    let textY = bubbleY + bubblePaddingY + fontSize * 0.55;
+    for (let l = 0; l < lines.length; l++) {
+      ctx.fillText(lines[l], bubbleX + bubblePaddingX, textY);
+      textY += lineSpacing;
+    }
+    ctx.restore();
+
+    currentY += bubbleHeight + marginBottom;
+  }
+
+  // 4. Draw Bottom Action Bar if enabled
+  if (config.showBottomBar) {
+    drawMessengerBottomBar(ctx, canvasWidth, canvasHeight);
+  }
+}
+
+/**
+ * Render Notification Cards Canvas (Single or Double)
+ */
+async function renderNotificationCanvas(
+  canvas: HTMLCanvasElement,
+  config: CaptionConfig
+): Promise<void> {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
 
   const canvasWidth = 1284;
   const cardMarginX = 52;
@@ -217,7 +492,6 @@ export async function renderCaptionCanvas(
       ? config.notifications.slice(0, 2)
       : config.notifications.slice(0, 1);
 
-  // Calculate dimensions for each card
   const titleFontSize = 34;
   const timeFontSize = 28;
   const headerHeight = 36;
@@ -268,14 +542,12 @@ export async function renderCaptionCanvas(
     computedCards.reduce((acc, c) => acc + c.cardHeight, 0) +
     gapBetweenCards * Math.max(0, computedCards.length - 1);
 
-  // Canvas height calculation
   let canvasHeight = 900;
   if (config.aspectRatio === '1:1') {
     canvasHeight = 1284;
   } else if (config.aspectRatio === '16:9') {
     canvasHeight = Math.round((1284 * 9) / 16);
   } else {
-    // Original Auto height
     const baseHeight = config.mode === 'double' ? 960 : 860;
     canvasHeight = Math.max(baseHeight, totalCardsHeight + (config.mode === 'double' ? 440 : 640));
   }
@@ -283,14 +555,12 @@ export async function renderCaptionCanvas(
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // 1. Solid Black Background
+  // Solid Black
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  // 2. Center the entire block of cards vertically
   let currentCardY = Math.round((canvasHeight - totalCardsHeight) / 2);
 
-  // 3. Render each card
   for (const card of computedCards) {
     const cardX = cardMarginX;
     const cardY = currentCardY;
@@ -320,7 +590,7 @@ export async function renderCaptionCanvas(
     const iconY = cardY + cardPaddingY;
     drawAppIcon(ctx, notif.appType || 'messenger', iconX, iconY, iconSize);
 
-    // Header: Title & Timestamp
+    // Header
     const headerY = iconY + titleFontSize * 0.72;
 
     ctx.save();
@@ -337,7 +607,7 @@ export async function renderCaptionCanvas(
     ctx.fillText(notif.timestamp || 'now', timeX, headerY);
     ctx.restore();
 
-    // Body Text
+    // Body
     ctx.save();
     ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
     ctx.fillStyle = '#FFFFFF';
@@ -353,8 +623,25 @@ export async function renderCaptionCanvas(
     }
     ctx.restore();
 
-    // Move Y for next card
     currentCardY += cardHeight + gapBetweenCards;
+  }
+}
+
+/**
+ * Main Render Engine entrypoint
+ */
+export async function renderCaptionCanvas(
+  canvas: HTMLCanvasElement,
+  config: CaptionConfig
+): Promise<void> {
+  try {
+    await document.fonts.ready;
+  } catch (e) {}
+
+  if (config.templateType === 'chat') {
+    await renderChatCanvas(canvas, config);
+  } else {
+    await renderNotificationCanvas(canvas, config);
   }
 }
 
