@@ -6,11 +6,11 @@ import { ImagePreview } from './components/ImagePreview';
 import { Sparkles } from 'lucide-react';
 
 const DEFAULT_CONFIG: CaptionConfig = {
-  templateType: 'chat',
-  customBgUrl: null,
+  templateType: 'notification', // Mặc định là Notification như hình ảnh
+  customBgUrl: null, // Nền đen mặc định
   bgOverlayOpacity: 0.4,
   bgBlur: 0,
-  mode: 'double',
+  mode: 'single', // Mặc định là 1 Thông báo (1 ແຈ້ງເຕືອນ)
   notifications: [
     {
       id: 'notif-1',
