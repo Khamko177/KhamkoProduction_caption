@@ -51,6 +51,9 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
   }, [currentBrand]);
 
   const currentConfig = settings[activeBrandTab];
+  const displayPageName = activeBrandTab === 'khoihukjao'
+    ? (currentConfig.pageName && currentConfig.pageName !== 'Khamko Production' ? currentConfig.pageName : 'Khoi Huk Jao')
+    : (currentConfig.pageName || 'Khamko Production');
 
   const handleUpdateCurrentField = (field: 'pageId' | 'accessToken', value: string) => {
     setSettings((prev) => ({
@@ -182,13 +185,13 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
         <div className="p-6 space-y-4 overflow-y-auto">
           
           {/* Active Page Info Card if Connected */}
-          {currentConfig.isConnected && currentConfig.pageName && (
+          {currentConfig.isConnected && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {currentConfig.avatarUrl ? (
                   <img
                     src={currentConfig.avatarUrl}
-                    alt={currentConfig.pageName}
+                    alt={displayPageName}
                     className="w-10 h-10 rounded-full border border-emerald-500/40 object-cover"
                   />
                 ) : (
@@ -199,7 +202,7 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-bold text-white font-lao">
-                      {currentConfig.pageName}
+                      {displayPageName}
                     </h3>
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                   </div>
@@ -300,7 +303,11 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
                 <div>
                   <p className="font-bold">
                     {testResult.success
-                      ? `ເຊື່ອມຕໍ່ສຳເລັດກັບ: ${testResult.pageName}!`
+                      ? `ເຊື່ອມຕໍ່ສຳເລັດກັບ: ${
+                          testResult.pageName && testResult.pageName !== 'Khamko Production'
+                            ? testResult.pageName
+                            : (activeBrandTab === 'khoihukjao' ? 'Khoi Huk Jao' : 'Khamko Production')
+                        }!`
                       : 'ການເຊື່ອມຕໍ່ລົ້ມເຫຼວ'}
                   </p>
                   <p className="text-[11px] opacity-90 mt-0.5 whitespace-pre-line leading-relaxed">

@@ -40,9 +40,16 @@ export function getFacebookSettings(): FacebookSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw);
+    const khoihukjaoConfig = { ...DEFAULT_SETTINGS.khoihukjao, ...parsed.khoihukjao };
+    if (
+      khoihukjaoConfig.pageId === '103867871513828' &&
+      (!khoihukjaoConfig.pageName || khoihukjaoConfig.pageName === 'Khamko Production')
+    ) {
+      khoihukjaoConfig.pageName = 'Khoi Huk Jao';
+    }
     return {
       khamko: { ...DEFAULT_SETTINGS.khamko, ...parsed.khamko },
-      khoihukjao: { ...DEFAULT_SETTINGS.khoihukjao, ...parsed.khoihukjao },
+      khoihukjao: khoihukjaoConfig,
     };
   } catch (err) {
     console.error('Failed to parse Facebook settings', err);
@@ -145,6 +152,10 @@ export async function testFacebookConnection(
             }
           } catch {
             // fallback
+          }
+
+          if (brandHint === 'khoihukjao' && (!pageTitle || pageTitle === 'Khamko Production')) {
+            pageTitle = 'Khoi Huk Jao';
           }
 
           const scopes = d.scopes || [];

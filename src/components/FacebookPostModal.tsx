@@ -40,6 +40,9 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
   const isKhoiHukJao = baseConfig.brand === 'khoihukjao';
   const settings = getFacebookSettings();
   const currentConfig = settings[baseConfig.brand];
+  const displayPageName = isKhoiHukJao
+    ? (currentConfig.pageName && currentConfig.pageName !== 'Khamko Production' ? currentConfig.pageName : 'Khoi Huk Jao')
+    : (currentConfig.pageName || 'Khamko Production');
 
   // Mode: 'now' | 'schedule'
   const [postMode, setPostMode] = useState<'now' | 'schedule'>('schedule');
@@ -201,7 +204,7 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-400" />
                 <span className="text-slate-400">ເພຈປາຍທາງ:</span>
                 <span className="font-bold text-white">
-                  {currentConfig.pageName || `ID: ${currentConfig.pageId}`}
+                  {displayPageName || `ID: ${currentConfig.pageId}`}
                 </span>
               </div>
               <button
