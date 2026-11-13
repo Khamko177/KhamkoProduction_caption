@@ -196,3 +196,92 @@ export async function publishPhotoToFacebook({
     };
   }
 }
+
+export interface DailyTimeSlot {
+  id: string;
+  time: string; // "HH:mm"
+  label: string;
+  icon: string;
+  periodName: string;
+}
+
+/**
+ * 5 Fixed Posting Slots per Day as requested:
+ * • 07:45 (เช้า / Morning)
+ * • 12:00 (เที่ยง / Noon)
+ * • 17:15 (เย็น / Afternoon)
+ * • 20:15 (ค่ำ / Evening)
+ * • 22:45 (ดึก / Night)
+ */
+export const FIXED_DAILY_SLOTS: DailyTimeSlot[] = [
+  { id: 'morning', time: '07:45', label: '07:45 (ຕອນເຊົ້າ)', icon: '🌅', periodName: 'ເຊົ້າ' },
+  { id: 'noon', time: '12:00', label: '12:00 (ຕອນທ່ຽງ)', icon: '☀️', periodName: 'ທ່ຽງ' },
+  { id: 'afternoon', time: '17:15', label: '17:15 (ຕອນແລງ)', icon: '🌇', periodName: 'ແລງ' },
+  { id: 'evening', time: '20:15', label: '20:15 (ຕອນຄ່ຳ)', icon: '🌙', periodName: 'ຄ່ຳ' },
+  { id: 'night', time: '22:45', label: '22:45 (ຮອບເດິກ)', icon: '🌌', periodName: 'ເດິກ' },
+];
+
+export interface PlannedScheduleItem {
+  captionIndex: number;
+  captionText: string;
+  dateStr: string; // YYYY-MM-DD
+  timeStr: string; // HH:mm
+  scheduledTimestampSec: number;
+  slotLabel: string;
+  slotIcon: string;
+  slotId: string;
+  isPastOrTooSoon: boolean;
+}
+
+/**
+ * Computes scheduled timestamps for a list of captions based on 5 fixed daily slots
+ */
+export function computeDailyScheduleTimeline(
+  captions: string[],
+  startDateStr: string, // YYYY-MM-DD
+  startSlotIndex: number = 0,
+  slots: DailyTimeSlot[] = FIXED_DAILY_SLOTS
+): PlannedScheduleItem[] {
+  const result: PlannedScheduleItem[] = [];
+  if (captions.length === 0) return result;
+
+  const [year, month, day] = startDateStr.split('-').map(Number);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const minFutureSec = nowSec + 10 * 60; // Facebook requires >= 10 mins in future
+
+  let currentDayOffset = 0;
+  let currentSlotIdx = Math.max(0, Math.min(startSlotIndex, slots.length - 1));
+
+  for (let i = 0; i < captions.length; i++) {
+    const targetDate = new Date(year, month - 1, day + currentDayOffset);
+    const targetDateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(
+      targetDate.getDate()
+    ).padStart(2, '0')}`;
+
+    const slot = slots[currentSlotIdx];
+    const [hours, minutes] = slot.time.split(':').map(Number);
+
+    const fullDateTime = new Date(year, month - 1, day + currentDayOffset, hours, minutes, 0, 0);
+    const scheduledTimestampSec = Math.floor(fullDateTime.getTime() / 1000);
+
+    result.push({
+      captionIndex: i,
+      captionText: captions[i],
+      dateStr: targetDateStr,
+      timeStr: slot.time,
+      scheduledTimestampSec,
+      slotLabel: slot.label,
+      slotIcon: slot.icon,
+      slotId: slot.id,
+      isPastOrTooSoon: scheduledTimestampSec < minFutureSec,
+    });
+
+    currentSlotIdx++;
+    if (currentSlotIdx >= slots.length) {
+      currentSlotIdx = 0;
+      currentDayOffset++;
+    }
+  }
+
+  return result;
+}

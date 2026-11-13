@@ -3,6 +3,7 @@ import { CaptionConfig } from '../types';
 import {
   getFacebookSettings,
   publishPhotoToFacebook,
+  FIXED_DAILY_SLOTS,
 } from '../utils/facebookApi';
 import {
   X,
@@ -47,11 +48,11 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
   const defaultCaption = baseConfig.quoteText || baseConfig.notifications[0]?.caption || '';
   const [message, setMessage] = useState<string>(defaultCaption);
 
-  // Date and Time for scheduling (Default: tomorrow at 10:11)
+  // Date and Time for scheduling (Default: tomorrow at 07:45 fixed slot 1)
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const defaultDateStr = tomorrow.toISOString().split('T')[0];
-  const defaultTimeStr = '10:11';
+  const defaultTimeStr = '07:45';
 
   const [scheduleDate, setScheduleDate] = useState<string>(defaultDateStr);
   const [scheduleTime, setScheduleTime] = useState<string>(defaultTimeStr);
@@ -73,26 +74,15 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
     }
   }, [canvasRef, isOpen]);
 
-  // Quick schedule presets
-  const handleSetQuickSchedule = (type: 'tomorrow_1011' | 'tomorrow_1400' | 'plus_2h') => {
+  // Quick schedule presets for 5 fixed daily slots
+  const handleSelectSlotTime = (time: string, day: 'today' | 'tomorrow' = 'tomorrow') => {
     const target = new Date();
-    if (type === 'plus_2h') {
-      target.setHours(target.getHours() + 2);
-    } else {
+    if (day === 'tomorrow') {
       target.setDate(target.getDate() + 1);
-      if (type === 'tomorrow_1011') {
-        target.setHours(10, 11, 0, 0);
-      } else {
-        target.setHours(14, 0, 0, 0);
-      }
     }
-
     const dStr = target.toISOString().split('T')[0];
-    const hours = String(target.getHours()).padStart(2, '0');
-    const minutes = String(target.getMinutes()).padStart(2, '0');
-
     setScheduleDate(dStr);
-    setScheduleTime(`${hours}:${minutes}`);
+    setScheduleTime(time);
     setPostMode('schedule');
   };
 
@@ -325,30 +315,64 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
                 </div>
               </div>
 
-              {/* Quick Preset Buttons */}
-              <div className="flex items-center gap-2 pt-1 font-lao">
-                <span className="text-[11px] text-slate-500">ເລືອກດ່ວນ:</span>
-                <button
-                  type="button"
-                  onClick={() => handleSetQuickSchedule('tomorrow_1011')}
-                  className="text-[11px] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-2 py-1 rounded-lg cursor-pointer"
-                >
-                  ມື້ອື່ນ 10:11 (ตามภาพ)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetQuickSchedule('tomorrow_1400')}
-                  className="text-[11px] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-2 py-1 rounded-lg cursor-pointer"
-                >
-                  ມື້ອື່ນ 14:00
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetQuickSchedule('plus_2h')}
-                  className="text-[11px] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 px-2 py-1 rounded-lg cursor-pointer"
-                >
-                  ອີກ 2 ຊົ່ວໂມງ
-                </button>
+              {/* 5 Fixed Daily Slots Presets */}
+              <div className="space-y-1.5 pt-1 font-lao">
+                <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <span>ເລືອກຮອບໂພສຄົງທີ່ (5 ຮອບ/ມື້):</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const today = new Date().toISOString().split('T')[0];
+                        setScheduleDate(today);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] cursor-pointer transition-colors ${
+                        scheduleDate === new Date().toISOString().split('T')[0]
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-900 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ມື້ນີ້
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = new Date();
+                        target.setDate(target.getDate() + 1);
+                        setScheduleDate(target.toISOString().split('T')[0]);
+                      }}
+                      className={`px-2 py-0.5 rounded text-[10px] cursor-pointer transition-colors ${
+                        scheduleDate !== new Date().toISOString().split('T')[0]
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-900 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ມື້ອື່ນ
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-1.5">
+                  {FIXED_DAILY_SLOTS.map((slot) => {
+                    const isSelected = scheduleTime === slot.time;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setScheduleTime(slot.time)}
+                        className={`p-2 rounded-xl text-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 border-blue-400 text-white shadow-md shadow-blue-500/25 ring-1 ring-white/20'
+                            : 'bg-slate-900/90 border-slate-700 hover:border-slate-600 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-sm block">{slot.icon}</span>
+                        <span className="font-mono font-bold text-xs block leading-tight">{slot.time}</span>
+                        <span className="text-[9px] text-slate-400 block truncate">{slot.periodName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <p className="text-[11px] text-slate-400 font-lao leading-relaxed border-t border-slate-800/80 pt-2">

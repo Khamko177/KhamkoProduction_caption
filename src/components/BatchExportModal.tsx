@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CaptionConfig, BrandType } from '../types';
 import {
   renderCaptionCanvas,
@@ -10,6 +10,9 @@ import { SAMPLE_PRESETS } from '../data/presets';
 import {
   getFacebookSettings,
   publishPhotoToFacebook,
+  FIXED_DAILY_SLOTS,
+  computeDailyScheduleTimeline,
+  PlannedScheduleItem,
 } from '../utils/facebookApi';
 import {
   X,
@@ -31,6 +34,8 @@ import {
   AlertCircle,
   ExternalLink,
   Settings,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -82,12 +87,29 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
     errors: string[];
   } | null>(null);
 
-  // Default date/time: tomorrow at 10:11 (matching user screenshot)
+  // Strategy: 'fixed5' (5 posts/day: 07:45, 12:00, 17:15, 20:15, 22:45) vs 'custom'
+  const [scheduleStrategy, setScheduleStrategy] = useState<'fixed5' | 'custom'>('fixed5');
+
+  // Default start date: tomorrow (ensures all 5 slots start cleanly in the future)
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const [batchStartDate, setBatchStartDate] = useState<string>(tomorrow.toISOString().split('T')[0]);
-  const [batchStartTime, setBatchStartTime] = useState<string>('10:11');
+  const [startSlotIndex, setStartSlotIndex] = useState<number>(0); // 0 = 07:45
+  const [showTimelinePreview, setShowTimelinePreview] = useState<boolean>(false);
+
+  // Custom mode options fallback
+  const [batchStartTime, setBatchStartTime] = useState<string>('07:45');
   const [batchIntervalHours, setBatchIntervalHours] = useState<number>(4);
+
+  // Compute planned schedule timeline reactively
+  const plannedSchedule = useMemo<PlannedScheduleItem[]>(() => {
+    return computeDailyScheduleTimeline(
+      captions,
+      batchStartDate,
+      startSlotIndex,
+      FIXED_DAILY_SLOTS
+    );
+  }, [captions, batchStartDate, startSlotIndex]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,6 +269,17 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
       return;
     }
 
+    // Validation for past/too soon slots in fixed5 mode
+    if (scheduleStrategy === 'fixed5') {
+      const invalidItem = plannedSchedule.find((item) => item.isPastOrTooSoon);
+      if (invalidItem) {
+        alert(
+          `ຮອບເວລາ ${invalidItem.dateStr} ${invalidItem.timeStr} ແມ່ນຜ່ານມາແລ້ວ ຫຼື ໄວກວ່າ 10 ນາທີ.\n(Facebook กำหนดให้ตั้งเวลาล่วงหน้าอย่างน้อย 10 นาทีขึ้นไป)\n\n👉 ກະລຸນາເລືອກເລີ່ມຈາກ "ມື້ອື່ນ" ຫຼື ເລືອກຮອບເວລາຖັດໄປເດີ!`
+        );
+        return;
+      }
+    }
+
     setIsScheduling(true);
     setScheduleSummary(null);
     setScheduleProgress({ current: 0, total: captions.length, statusText: 'ກຳລັງເລີ່ມຕົ້ນ...' });
@@ -255,7 +288,7 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
     let successCount = 0;
     let failCount = 0;
 
-    // Base start timestamp in seconds
+    // Base start timestamp in seconds for custom mode
     const startDateTime = new Date(`${batchStartDate}T${batchStartTime}:00`);
     const baseStartSec = Math.floor(startDateTime.getTime() / 1000);
 
@@ -264,12 +297,22 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
 
     for (let i = 0; i < captions.length; i++) {
       const captionText = captions[i];
-      const scheduledSec = baseStartSec + i * (batchIntervalHours * 3600);
 
-      const scheduleDateObj = new Date(scheduledSec * 1000);
-      const timeLabel = `${scheduleDateObj.toLocaleDateString('th-TH')} ${scheduleDateObj.getHours()}:${String(
-        scheduleDateObj.getMinutes()
-      ).padStart(2, '0')}`;
+      // Determine scheduled timestamp based on chosen strategy
+      let scheduledSec: number;
+      let timeLabel: string;
+
+      if (scheduleStrategy === 'fixed5') {
+        const plannedItem = plannedSchedule[i];
+        scheduledSec = plannedItem?.scheduledTimestampSec || baseStartSec + i * 3600 * 4;
+        timeLabel = plannedItem ? `${plannedItem.dateStr} ${plannedItem.timeStr} ${plannedItem.slotIcon}` : '';
+      } else {
+        scheduledSec = baseStartSec + i * (batchIntervalHours * 3600);
+        const scheduleDateObj = new Date(scheduledSec * 1000);
+        timeLabel = `${scheduleDateObj.toLocaleDateString('th-TH')} ${scheduleDateObj.getHours()}:${String(
+          scheduleDateObj.getMinutes()
+        ).padStart(2, '0')}`;
+      }
 
       setScheduleProgress({
         current: i + 1,
@@ -694,12 +737,16 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
 
               {/* Meta Planner Batch Scheduling Panel */}
               {showScheduleSection && (
-                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 animate-in fade-in">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="text-xs font-bold text-white font-lao flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>ຕັ້ງເວລາໂພສລົງ Meta Business Suite</span>
-                    </span>
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3.5 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#1877F2]/20 text-[#1877F2] flex items-center justify-center">
+                        <Facebook className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-bold text-white font-lao">
+                        ຕັ້ງເວລາໂພສລົງ Meta Business Suite
+                      </span>
+                    </div>
                     {onOpenFacebookSettings && (
                       <button
                         type="button"
@@ -715,44 +762,225 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                     )}
                   </div>
 
-                  {/* Date & Start Time */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-slate-400 font-lao">ເລີ່ມວັນທີ:</label>
-                      <input
-                        type="date"
-                        value={batchStartDate}
-                        onChange={(e) => setBatchStartDate(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-slate-400 font-lao">ເລີ່ມເວລາ:</label>
-                      <input
-                        type="time"
-                        value={batchStartTime}
-                        onChange={(e) => setBatchStartTime(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
-                      />
+                  {/* Mode Switcher: 5 Fixed Slots per Day vs Custom Interval */}
+                  <div className="space-y-1 font-lao">
+                    <label className="text-[11px] text-slate-400 font-semibold block">
+                      ຮູບແບບການຕັ້ງເວລາ (Schedule Mode):
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScheduleStrategy('fixed5')}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          scheduleStrategy === 'fixed5'
+                            ? 'bg-blue-600/25 border-blue-500 text-white shadow-md shadow-blue-500/10 ring-1 ring-blue-500/40'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span>✨ ມື້ລະ 5 ໂພສຄົງທີ່</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScheduleStrategy('custom')}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                          scheduleStrategy === 'custom'
+                            ? 'bg-blue-600/25 border-blue-500 text-white shadow-md shadow-blue-500/10 ring-1 ring-blue-500/40'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span>ກຳນົດໄລຍະຫ່າງເອງ</span>
+                      </button>
                     </div>
                   </div>
 
-                  {/* Interval selector */}
-                  <div className="space-y-1 font-lao">
-                    <label className="text-[10px] text-slate-400">ໄລຍະຫ່າງລະຫວ່າງແຕ່ລະໂພສ (Interval):</label>
-                    <select
-                      value={batchIntervalHours}
-                      onChange={(e) => setBatchIntervalHours(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-lao"
-                    >
-                      <option value={1}>ທຸກໆ 1 ຊົ່ວໂມງ (Every 1 hour)</option>
-                      <option value={2}>ທຸກໆ 2 ຊົ່ວໂມງ (Every 2 hours)</option>
-                      <option value={4}>ທຸກໆ 4 ຊົ່ວໂມງ (Every 4 hours - ແນະນຳ)</option>
-                      <option value={6}>ທຸກໆ 6 ຊົ່ວໂມງ (Every 6 hours)</option>
-                      <option value={12}>ທຸກໆ 12 ຊົ່ວໂມງ (2 ໂພສຕໍ່ມື້)</option>
-                      <option value={24}>ທຸກໆ 24 ຊົ່ວໂມງ (1 ໂພສຕໍ່ມື້ ຕາມເວລາດຽວກັນ)</option>
-                    </select>
-                  </div>
+                  {/* Fixed 5 Posts/Day View */}
+                  {scheduleStrategy === 'fixed5' ? (
+                    <div className="space-y-3 pt-1">
+                      {/* Fixed 5 Slots Banner */}
+                      <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-300 font-lao">
+                          <span>5 ຮອບເວລາຄົງທີ່ໃນແຕ່ລະມື້:</span>
+                          <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                            5 ໂພສ / ມື້
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-1 text-center font-mono">
+                          {FIXED_DAILY_SLOTS.map((slot, sIdx) => {
+                            const isStartingSlot = startSlotIndex === sIdx;
+                            return (
+                              <div
+                                key={slot.id}
+                                onClick={() => setStartSlotIndex(sIdx)}
+                                className={`p-1.5 rounded-lg border cursor-pointer transition-all ${
+                                  isStartingSlot
+                                    ? 'bg-blue-600/30 border-blue-400 text-white ring-1 ring-blue-400/30'
+                                    : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                                }`}
+                                title={`ຄລິກເພື່ອເລີ່ມຈາກຮອບ ${slot.label}`}
+                              >
+                                <span className="text-xs block">{slot.icon}</span>
+                                <span className="text-[11px] font-bold block">{slot.time}</span>
+                                <span className="text-[9px] text-slate-400 block font-lao">{slot.periodName}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Start Date & Start Slot Controls */}
+                      <div className="grid grid-cols-2 gap-2 font-lao">
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-slate-400">ເລີ່ມວັນທີ:</label>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const target = new Date();
+                                  target.setDate(target.getDate() + 1);
+                                  setBatchStartDate(target.toISOString().split('T')[0]);
+                                }}
+                                className="text-[9px] text-blue-400 hover:underline cursor-pointer"
+                              >
+                                ມື້ອື່ນ
+                              </button>
+                              <span className="text-slate-600">|</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const today = new Date().toISOString().split('T')[0];
+                                  setBatchStartDate(today);
+                                }}
+                                className="text-[9px] text-slate-400 hover:underline cursor-pointer"
+                              >
+                                ມື້ນີ້
+                              </button>
+                            </div>
+                          </div>
+                          <input
+                            type="date"
+                            value={batchStartDate}
+                            onChange={(e) => setBatchStartDate(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-400">ເລີ່ມຕົ້ນຈາກຮອບ:</label>
+                          <select
+                            value={startSlotIndex}
+                            onChange={(e) => setStartSlotIndex(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-lao"
+                          >
+                            {FIXED_DAILY_SLOTS.map((slot, idx) => (
+                              <option key={slot.id} value={idx}>
+                                {idx + 1}. {slot.icon} {slot.time} ({slot.periodName})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Distribution Summary & Timeline Toggle */}
+                      {captions.length > 0 && (
+                        <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-lao">
+                            <div className="flex items-center gap-1.5 text-slate-300">
+                              <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                              <span>
+                                ແບ່ງ <strong>{captions.length}</strong> ໂພສ ລົງ <strong>{Math.ceil(captions.length / 5)}</strong> ມື້
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setShowTimelinePreview(!showTimelinePreview)}
+                              className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{showTimelinePreview ? 'ເຊື່ອງຕາຕະລາງ' : 'ເບິ່ງຕາຕະລາງ'}</span>
+                              {showTimelinePreview ? (
+                                <ChevronUp className="w-3 h-3" />
+                              ) : (
+                                <ChevronDown className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Expandable Timeline List */}
+                          {showTimelinePreview && (
+                            <div className="space-y-1 max-h-40 overflow-y-auto pr-1 border-t border-slate-800/80 pt-1.5 font-lao animate-in fade-in">
+                              {plannedSchedule.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className={`text-[11px] p-1.5 rounded-lg border flex items-center justify-between gap-2 ${
+                                    item.isPastOrTooSoon
+                                      ? 'bg-red-500/10 border-red-500/30 text-red-300'
+                                      : 'bg-slate-900 border-slate-800/80 text-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 overflow-hidden">
+                                    <span className="font-mono text-[10px] text-slate-400 shrink-0">
+                                      #{String(idx + 1).padStart(2, '0')}
+                                    </span>
+                                    <span className="font-mono text-blue-300 text-[10px] shrink-0">
+                                      {item.dateStr.slice(5)} {item.timeStr} {item.slotIcon}
+                                    </span>
+                                    <span className="truncate text-slate-200">
+                                      {item.captionText}
+                                    </span>
+                                  </div>
+                                  {item.isPastOrTooSoon && (
+                                    <span className="text-[9px] text-red-400 font-bold shrink-0">
+                                      ຜ່ານມາແລ້ວ!
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Custom Interval Fallback */
+                    <div className="space-y-2.5 pt-1 font-lao">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-400">ເລີ່ມວັນທີ:</label>
+                          <input
+                            type="date"
+                            value={batchStartDate}
+                            onChange={(e) => setBatchStartDate(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-slate-400">ເລີ່ມເວລາ:</label>
+                          <input
+                            type="time"
+                            value={batchStartTime}
+                            onChange={(e) => setBatchStartTime(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-400">ໄລຍະຫ່າງລະຫວ່າງແຕ່ລະໂພສ:</label>
+                        <select
+                          value={batchIntervalHours}
+                          onChange={(e) => setBatchIntervalHours(Number(e.target.value))}
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-lao"
+                        >
+                          <option value={1}>ທຸກໆ 1 ຊົ່ວໂມງ (Every 1 hour)</option>
+                          <option value={2}>ທຸກໆ 2 ຊົ່ວໂມງ (Every 2 hours)</option>
+                          <option value={4}>ທຸກໆ 4 ຊົ່ວໂມງ (Every 4 hours)</option>
+                          <option value={6}>ທຸກໆ 6 ຊົ່ວໂມງ (Every 6 hours)</option>
+                          <option value={12}>ທຸກໆ 12 ຊົ່ວໂມງ (2 ໂພສຕໍ່ມື້)</option>
+                          <option value={24}>ທຸກໆ 24 ຊົ່ວໂມງ (1 ໂພສຕໍ່ມື້)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Progress status when scheduling */}
                   {isScheduling && (
@@ -795,7 +1023,9 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                         </span>
                       </div>
                       <p className="text-[11px] opacity-90 leading-relaxed">
-                        ໂພສທັງໝົດໄດ້ຖືກສົ່ງເຂົ້າສູ່ Meta Planner ແລ້ວ ຕາມຊ່ວງເວລາທີ່ກຳນົດ.
+                        {scheduleStrategy === 'fixed5'
+                          ? `ໂພສທັງໝົດໄດ້ຖືກແບ່ງລົງຕາມ 5 ຮອບຄົງທີ່ (07:45, 12:00, 17:15, 20:15, 22:45) ໃນ Meta Business Suite Planner ແລ້ວ.`
+                          : `ໂພສທັງໝົດໄດ້ຖືກສົ່ງເຂົ້າສູ່ Meta Planner ແລ້ວ ຕາມຊ່ວງເວລາທີ່ກຳນົດ.`}
                       </p>
                       <a
                         href="https://business.facebook.com/latest/content_calendar"
@@ -824,7 +1054,11 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                     ) : (
                       <>
                         <Calendar className="w-3.5 h-3.5" />
-                        <span>🚀 ຢືນຢັນຕັ້ງເວລາ {captions.length} ໂພສລົງ Meta Planner</span>
+                        <span>
+                          {scheduleStrategy === 'fixed5'
+                            ? `🚀 ຢືນຢັນຕັ້ງເວລາ ${captions.length} ໂພສ (ມື້ລະ 5 ໂພສ) ລົງ Meta Planner`
+                            : `🚀 ຢືນຢັນຕັ້ງເວລາ ${captions.length} ໂພສລົງ Meta Planner`}
+                        </span>
                       </>
                     )}
                   </button>
