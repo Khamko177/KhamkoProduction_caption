@@ -7,6 +7,7 @@ import {
 } from '../types';
 import khoiHukJaoBannerUrl from '../KhoiHukJao/banner.jpg';
 import tiktokFontUrl from '../KhoiHukJao/Tiktok-Regular.ttf';
+import JSZip from 'jszip';
 
 /**
  * Image Cache for fast rendering
@@ -881,3 +882,102 @@ export async function copyCanvasToClipboard(canvas: HTMLCanvasElement): Promise<
     }, 'image/png');
   });
 }
+
+export interface BatchProgressCallback {
+  (current: number, total: number, currentCaption: string): void;
+}
+
+export interface GeneratedBatchItem {
+  id: string;
+  filename: string;
+  caption: string;
+  blob: Blob;
+  dataUrl: string;
+}
+
+/**
+ * Generate multiple caption images in memory and package into a ZIP file
+ */
+export async function generateBatchImages(
+  captions: string[],
+  baseConfig: CaptionConfig,
+  onProgress?: BatchProgressCallback
+): Promise<{ zipBlob: Blob; items: GeneratedBatchItem[] }> {
+  await ensureFontsLoaded(baseConfig.brand);
+
+  const zip = new JSZip();
+  const offscreenCanvas = document.createElement('canvas');
+  const items: GeneratedBatchItem[] = [];
+
+  const validCaptions = captions.map((c) => c.trim()).filter((c) => c.length > 0);
+  const total = validCaptions.length;
+
+  for (let i = 0; i < total; i++) {
+    const caption = validCaptions[i];
+
+    if (onProgress) {
+      onProgress(i + 1, total, caption);
+    }
+
+    // Build specific config for this caption item
+    const itemConfig: CaptionConfig = {
+      ...baseConfig,
+      quoteText: caption,
+      notifications: baseConfig.notifications.map((item, idx) =>
+        idx === 0 ? { ...item, caption } : item
+      ),
+    };
+
+    // Render on offscreen canvas
+    await renderCaptionCanvas(offscreenCanvas, itemConfig);
+
+    // Convert to PNG blob & dataUrl
+    const blob = await new Promise<Blob | null>((resolve) =>
+      offscreenCanvas.toBlob(resolve, 'image/png', 0.95)
+    );
+
+    const dataUrl = offscreenCanvas.toDataURL('image/png', 0.95);
+
+    if (blob) {
+      const prefix = baseConfig.brand === 'khoihukjao' ? 'khoihukjao' : 'khamko';
+      const cleanSlug = caption
+        .slice(0, 20)
+        .replace(/[^a-zA-Z0-9\u0E80-\u0EFF\u00C0-\u1EF9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '') || 'meme';
+      const filename = `${String(i + 1).padStart(2, '0')}_${prefix}_${cleanSlug}.png`;
+
+      zip.file(filename, blob);
+      items.push({
+        id: `batch-item-${i + 1}`,
+        filename,
+        caption,
+        blob,
+        dataUrl,
+      });
+    }
+  }
+
+  const zipBlob = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  });
+
+  return { zipBlob, items };
+}
+
+/**
+ * Trigger browser file download from Blob
+ */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+

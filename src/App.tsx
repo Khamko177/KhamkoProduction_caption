@@ -5,7 +5,8 @@ import { EditorForm } from './components/EditorForm';
 import { ImagePreview } from './components/ImagePreview';
 import { PresetSelector } from './components/PresetSelector';
 import { BrandSelector } from './components/BrandSelector';
-import { Sparkles } from 'lucide-react';
+import { BatchExportModal } from './components/BatchExportModal';
+import { Sparkles, Zap } from 'lucide-react';
 
 const KHAMKO_DEFAULT_CONFIG: CaptionConfig = {
   brand: 'khamko',
@@ -117,6 +118,7 @@ const KHOIHUKJAO_DEFAULT_CONFIG: CaptionConfig = {
 export const App: React.FC = () => {
   // Option selection view on initial entrance
   const [showBrandSelector, setShowBrandSelector] = useState<boolean>(true);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const [currentBrand, setCurrentBrand] = useState<BrandType>('khamko');
   const [config, setConfig] = useState<CaptionConfig>(KHAMKO_DEFAULT_CONFIG);
 
@@ -191,6 +193,7 @@ export const App: React.FC = () => {
         currentBrand={currentBrand}
         onChangeBrand={handleSwitchBrand}
         onOpenBrandSelector={() => setShowBrandSelector(true)}
+        onOpenBatchModal={() => setIsBatchModalOpen(true)}
       />
 
       {/* Main Workspace or Brand Selector Screen */}
@@ -205,8 +208,33 @@ export const App: React.FC = () => {
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             
-            {/* Left Column: Form Controls & Presets */}
+            {/* Left Column: Form Controls, Batch Banner & Presets */}
             <div className="lg:col-span-6 space-y-6">
+              
+              {/* Batch Export CTA Banner */}
+              <div className="bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600/25 border border-indigo-500/40 flex items-center justify-center text-yellow-300 shrink-0 shadow-md">
+                    <Zap className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white font-lao">
+                      ສ້າງຫຼາຍຮູບພາບພ້ອມກັນ & ດາວໂຫຼດ .ZIP
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-lao">
+                      Import ໄຟລ໌ .txt/.csv ຫຼື ວາງຫຼາຍແຄັບຊັ່ນເພື່ອສ້າງຮູບພາບພ້ອມກັນ
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBatchModalOpen(true)}
+                  className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold font-lao shadow-md transition-all shrink-0 cursor-pointer"
+                >
+                  ເປີດເຄື່ອງມື ⚡
+                </button>
+              </div>
+
               <EditorForm
                 config={config}
                 onChange={handleConfigChange}
@@ -228,6 +256,13 @@ export const App: React.FC = () => {
           </div>
         </main>
       )}
+
+      {/* Batch Export Modal */}
+      <BatchExportModal
+        isOpen={isBatchModalOpen}
+        onClose={() => setIsBatchModalOpen(false)}
+        baseConfig={config}
+      />
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-500 font-lao">

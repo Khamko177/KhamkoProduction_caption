@@ -1,18 +1,20 @@
 import React from 'react';
 import { BrandType } from '../types';
-import { MessageSquareText, Sparkles, RefreshCw } from 'lucide-react';
+import { MessageSquareText, Sparkles, RefreshCw, Zap } from 'lucide-react';
 import khoiHukJaoBannerUrl from '../KhoiHukJao/banner.jpg';
 
 interface HeaderProps {
   currentBrand: BrandType;
   onChangeBrand: (brand: BrandType) => void;
   onOpenBrandSelector: () => void;
+  onOpenBatchModal: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   currentBrand,
   onChangeBrand,
   onOpenBrandSelector,
+  onOpenBatchModal,
 }) => {
   const isKhamko = currentBrand === 'khamko';
 
@@ -90,6 +92,21 @@ export const Header: React.FC<HeaderProps> = ({
               <span>🧢 Khoi Huk Jao</span>
             </button>
           </div>
+
+          {/* Batch Generator (.ZIP) Button */}
+          <button
+            type="button"
+            onClick={onOpenBatchModal}
+            className={`flex items-center gap-1.5 text-xs font-bold text-white px-3.5 py-2 rounded-xl font-lao transition-all shadow-md active:scale-95 cursor-pointer ${
+              isKhamko
+                ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 shadow-blue-500/25 ring-1 ring-white/20'
+                : 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-500 hover:from-amber-500 hover:to-orange-400 shadow-amber-500/25 ring-1 ring-white/20'
+            }`}
+            title="ສ້າງຫຼາຍຮູບພາບພ້ອມກັນ & ດາວໂຫຼດ ZIP"
+          >
+            <Zap className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+            <span>ສ້າງຫຼາຍຮູບ (ZIP)</span>
+          </button>
 
           {/* Change Page Button */}
           <button
