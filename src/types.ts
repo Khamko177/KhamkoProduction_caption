@@ -1,7 +1,8 @@
+export type BrandType = 'khamko' | 'khoihukjao';
 export type AppType = 'messenger' | 'facebook' | 'instagram' | 'tiktok' | 'messages';
 export type CardTheme = 'dark' | 'glass' | 'pitchBlack';
 export type AspectRatioType = 'auto' | '16:9' | '1:1' | 'original';
-export type TemplateType = 'notification' | 'chat';
+export type TemplateType = 'notification' | 'chat' | 'directQuote';
 export type MessageSide = 'left' | 'right';
 
 export interface NotificationItem {
@@ -19,8 +20,14 @@ export interface ChatMessage {
 }
 
 export interface CaptionConfig {
+  brand: BrandType;
   templateType: TemplateType;
-  
+
+  // Direct Quote Mode Settings (Đặc biệt cho Khoi Huk Jao banner)
+  quoteText?: string;
+  quoteTextAlign?: 'center' | 'left';
+  quoteTextColor?: string;
+
   // Background Customization
   customBgUrl?: string | null;
   bgOverlayOpacity: number; // 0 to 1
@@ -41,6 +48,7 @@ export interface CaptionConfig {
 
 export interface PresetItem {
   id: string;
+  brand: BrandType;
   title: string;
   caption: string;
   category: string;

@@ -2,8 +2,11 @@ import {
   CaptionConfig,
   AppType,
   NotificationItem,
-  ChatMessage
+  ChatMessage,
+  BrandType
 } from '../types';
+import khoiHukJaoBannerUrl from '../KhoiHukJao/banner.jpg';
+import tiktokFontUrl from '../KhoiHukJao/Tiktok-Regular.ttf';
 
 /**
  * Image Cache for fast rendering
@@ -30,7 +33,31 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Draw background: Solid black or Custom image with cover & overlay
+ * Ensure custom font Tiktok-Regular is loaded into memory
+ */
+let tiktokFontLoaded = false;
+async function ensureFontsLoaded(brand: BrandType) {
+  if (brand === 'khoihukjao' && !tiktokFontLoaded) {
+    try {
+      if (typeof FontFace !== 'undefined') {
+        const font = new FontFace('Tiktok-Regular', `url(${tiktokFontUrl})`);
+        const loaded = await font.load();
+        document.fonts.add(loaded);
+        tiktokFontLoaded = true;
+      }
+    } catch (e) {
+      console.warn('Could not load FontFace for Tiktok-Regular', e);
+    }
+  }
+  try {
+    await document.fonts.ready;
+  } catch (e) {}
+}
+
+/**
+ * Draw background:
+ * - Khoi Huk Jao: Always fixed to banner.jpg
+ * - Khamko Production: Solid black or Custom uploaded image with cover & overlay
  */
 async function drawCanvasBackground(
   ctx: CanvasRenderingContext2D,
@@ -38,6 +65,20 @@ async function drawCanvasBackground(
   height: number,
   config: CaptionConfig
 ) {
+  if (config.brand === 'khoihukjao') {
+    try {
+      const bannerImg = await loadImage(khoiHukJaoBannerUrl);
+      ctx.drawImage(bannerImg, 0, 0, width, height);
+      return;
+    } catch (err) {
+      console.warn('Could not load Khoi Huk Jao banner, falling back to light gray', err);
+      ctx.fillStyle = '#eaeaea';
+      ctx.fillRect(0, 0, width, height);
+      return;
+    }
+  }
+
+  // Khamko Production Background logic
   if (config.customBgUrl) {
     try {
       const bgImg = await loadImage(config.customBgUrl);
@@ -89,7 +130,7 @@ async function drawCanvasBackground(
     }
   }
 
-  // Default Solid Black Background
+  // Default Solid Black Background for Khamko Production
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, width, height);
 }
@@ -286,7 +327,6 @@ function drawMessengerBottomBar(
   const barHeight = 110;
   const startY = bottomY - barHeight;
 
-  // Background with subtle transparency
   ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
   ctx.fillRect(0, startY, width, barHeight);
 
@@ -394,7 +434,78 @@ function drawMessengerBottomBar(
 }
 
 /**
- * Render Chat Messages Canvas
+ * 1. Render Direct Quote Canvas
+ * Đặc biệt dành cho phôi Banner chính thức của Page Khoi Huk Jao (1080 x 862 px)
+ * Viết chữ trực tiếp lên ảnh nền banner, dùng font Tiktok-Regular
+ */
+async function renderDirectQuoteCanvas(
+  canvas: HTMLCanvasElement,
+  config: CaptionConfig
+): Promise<void> {
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+
+  const canvasWidth = 1080;
+  const canvasHeight = 862;
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
+
+  // 1. Vẽ nền Banner chính thức của Khoi Huk Jao
+  await drawCanvasBackground(ctx, canvasWidth, canvasHeight, config);
+
+  // 2. Cấu hình Font chữ: Sử dụng Tiktok-Regular cho tiếng Lào
+  const primaryFontFamily = config.brand === 'khoihukjao'
+    ? `'Tiktok-Regular', 'Noto Sans Lao', sans-serif`
+    : `'Noto Sans Lao', 'Inter', sans-serif`;
+
+  // Lấy nội dung caption (từ quoteText hoặc notification đầu tiên)
+  const text = (config.quoteText ?? config.notifications[0]?.caption ?? '').trim() ||
+    'ບໍ່ແມ່ນຂ້ອຍຖືກເຂົາຫລີ້ນຂອງໃສ່ບໍ? ຄືມາຄິດຮອດເຂົາເຊົ້າແລງແທະ🫠';
+
+  // Tính toán cỡ chữ tự động hoặc theo slider
+  let fontSize = config.fontSize || 48;
+  if (config.autoFontSize) {
+    const len = text.length;
+    if (len < 30) fontSize = 56;
+    else if (len < 65) fontSize = 48;
+    else if (len < 120) fontSize = 42;
+    else if (len < 180) fontSize = 36;
+    else fontSize = 30;
+  }
+
+  const lineSpacing = fontSize * 1.55;
+  ctx.font = `normal ${fontSize}px ${primaryFontFamily}`;
+
+  // Vùng an toàn trên phôi banner:
+  // Banner 1080x862, tránh logo góc trên bên trái và watermark góc dưới bên phải
+  const maxTextWidth = 840;
+  const lines = wrapText(ctx, text, maxTextWidth);
+
+  const totalTextHeight = lines.length * lineSpacing;
+  const safeCenterY = 465;
+  const startY = Math.max(180, Math.round(safeCenterY - totalTextHeight / 2));
+
+  const align = config.quoteTextAlign || 'center';
+  const textColor = config.quoteTextColor || '#111827';
+
+  ctx.save();
+  ctx.fillStyle = textColor;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+
+  const textX = align === 'center' ? canvasWidth / 2 : 120;
+  let currentY = startY + fontSize * 0.55;
+
+  for (const line of lines) {
+    ctx.fillText(line, textX, currentY);
+    currentY += lineSpacing;
+  }
+
+  ctx.restore();
+}
+
+/**
+ * 2. Render Chat Messages Canvas
  */
 async function renderChatCanvas(
   canvas: HTMLCanvasElement,
@@ -403,12 +514,16 @@ async function renderChatCanvas(
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
 
-  const canvasWidth = 1284;
-  const paddingX = 48;
-  const maxBubbleWidth = 880;
-  const bubblePaddingX = 36;
-  const bubblePaddingY = 22;
-  const primaryFontFamily = `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
+  const isKhoiHukJao = config.brand === 'khoihukjao';
+  const canvasWidth = isKhoiHukJao ? 1080 : 1284;
+  const paddingX = isKhoiHukJao ? 40 : 48;
+  const maxBubbleWidth = isKhoiHukJao ? 760 : 880;
+  const bubblePaddingX = isKhoiHukJao ? 32 : 36;
+  const bubblePaddingY = isKhoiHukJao ? 20 : 22;
+
+  const primaryFontFamily = isKhoiHukJao
+    ? `'Tiktok-Regular', 'Noto Sans Lao', sans-serif`
+    : `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
 
   const messages: ChatMessage[] = config.chatMessages && config.chatMessages.length > 0
     ? config.chatMessages
@@ -419,7 +534,7 @@ async function renderChatCanvas(
         { id: '4', side: 'right', text: 'ວ່າແຕ່ມີຈັກສອງແສນໃຫ້ຢືມບໍສ່ຽວ??' }
       ];
 
-  const fontSize = config.fontSize || 38;
+  const fontSize = config.fontSize || (isKhoiHukJao ? 34 : 38);
   const lineSpacing = fontSize * 1.42;
   ctx.font = `500 ${fontSize}px ${primaryFontFamily}`;
 
@@ -437,7 +552,7 @@ async function renderChatCanvas(
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
     const lines = wrapText(ctx, msg.text || '...', maxBubbleWidth - bubblePaddingX * 2);
-    
+
     let longestLineWidth = 0;
     for (const line of lines) {
       const w = ctx.measureText(line).width;
@@ -445,10 +560,10 @@ async function renderChatCanvas(
     }
 
     const bubbleWidth = Math.max(120, Math.min(maxBubbleWidth, longestLineWidth + bubblePaddingX * 2));
-    const bubbleHeight = Math.max(76, lines.length * lineSpacing + bubblePaddingY * 2 - 8);
+    const bubbleHeight = Math.max(70, lines.length * lineSpacing + bubblePaddingY * 2 - 8);
 
     const isNextSameSide = i < messages.length - 1 && messages[i + 1].side === msg.side;
-    const marginBottom = isNextSameSide ? 10 : 28;
+    const marginBottom = isNextSameSide ? 10 : 26;
 
     computedBubbles.push({
       message: msg,
@@ -462,20 +577,22 @@ async function renderChatCanvas(
   }
 
   const bottomBarHeight = config.showBottomBar ? 120 : 0;
-  
-  let canvasHeight = 900;
-  if (config.aspectRatio === '1:1') {
-    canvasHeight = 1284;
-  } else if (config.aspectRatio === '16:9') {
-    canvasHeight = Math.round((1284 * 9) / 16);
-  } else {
-    canvasHeight = Math.max(860, totalMessagesHeight + bottomBarHeight + 360);
+
+  let canvasHeight = isKhoiHukJao ? 862 : 900;
+  if (!isKhoiHukJao) {
+    if (config.aspectRatio === '1:1') {
+      canvasHeight = 1284;
+    } else if (config.aspectRatio === '16:9') {
+      canvasHeight = Math.round((1284 * 9) / 16);
+    } else {
+      canvasHeight = Math.max(860, totalMessagesHeight + bottomBarHeight + 360);
+    }
   }
 
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // 1. Draw Background (Solid Black or Custom Image with Overlay & Blur)
+  // 1. Draw Background
   await drawCanvasBackground(ctx, canvasWidth, canvasHeight, config);
 
   // 2. Center vertically
@@ -495,7 +612,7 @@ async function renderChatCanvas(
     const bubbleY = currentY;
 
     ctx.save();
-    const bubbleRadius = 34;
+    const bubbleRadius = 32;
     drawRoundedRect(ctx, bubbleX, bubbleY, bubbleWidth, bubbleHeight, bubbleRadius);
 
     if (isRight) {
@@ -509,12 +626,11 @@ async function renderChatCanvas(
       blueGrad.addColorStop(1, '#0070FF');
       ctx.fillStyle = blueGrad;
     } else {
-      ctx.fillStyle = config.customBgUrl ? 'rgba(38, 38, 40, 0.94)' : '#262628';
+      ctx.fillStyle = isKhoiHukJao ? '#1c1c1e' : (config.customBgUrl ? 'rgba(38, 38, 40, 0.94)' : '#262628');
     }
     ctx.fill();
 
-    // Subtle border on custom bg
-    if (config.customBgUrl && !isRight) {
+    if ((config.customBgUrl || isKhoiHukJao) && !isRight) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       ctx.lineWidth = 1;
       ctx.stroke();
@@ -536,13 +652,13 @@ async function renderChatCanvas(
   }
 
   // 4. Draw Bottom Action Bar
-  if (config.showBottomBar) {
+  if (config.showBottomBar && !isKhoiHukJao) {
     drawMessengerBottomBar(ctx, canvasWidth, canvasHeight);
   }
 }
 
 /**
- * Render Notification Cards Canvas (Single or Double)
+ * 3. Render Notification Cards Canvas (Single or Double)
  */
 async function renderNotificationCanvas(
   canvas: HTMLCanvasElement,
@@ -551,27 +667,30 @@ async function renderNotificationCanvas(
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return;
 
-  const canvasWidth = 1284;
-  const cardMarginX = 52;
-  const cardWidth = canvasWidth - cardMarginX * 2; // 1180px
-  const cardPaddingX = 40;
-  const cardPaddingY = 36;
-  const iconSize = 92;
+  const isKhoiHukJao = config.brand === 'khoihukjao';
+  const canvasWidth = isKhoiHukJao ? 1080 : 1284;
+  const cardMarginX = isKhoiHukJao ? 48 : 52;
+  const cardWidth = canvasWidth - cardMarginX * 2;
+  const cardPaddingX = isKhoiHukJao ? 36 : 40;
+  const cardPaddingY = isKhoiHukJao ? 32 : 36;
+  const iconSize = isKhoiHukJao ? 84 : 92;
   const gapBetweenIconAndText = 24;
   const gapBetweenCards = 22;
 
   const contentX = cardMarginX + cardPaddingX + iconSize + gapBetweenIconAndText;
   const maxContentWidth = cardMarginX + cardWidth - cardPaddingX - contentX;
 
-  const primaryFontFamily = `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
+  const primaryFontFamily = isKhoiHukJao
+    ? `'Tiktok-Regular', 'Noto Sans Lao', sans-serif`
+    : `'Noto Sans Lao', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif`;
 
   const activeNotifications: NotificationItem[] =
     config.mode === 'double'
       ? config.notifications.slice(0, 2)
       : config.notifications.slice(0, 1);
 
-  const titleFontSize = 34;
-  const timeFontSize = 28;
+  const titleFontSize = isKhoiHukJao ? 30 : 34;
+  const timeFontSize = isKhoiHukJao ? 24 : 28;
   const headerHeight = 36;
   const gapHeaderToBody = 18;
 
@@ -584,17 +703,17 @@ async function renderNotificationCanvas(
   }
 
   const computedCards: CardComputed[] = activeNotifications.map((notif) => {
-    let bodyFontSize = config.fontSize || 38;
+    let bodyFontSize = config.fontSize || (isKhoiHukJao ? 34 : 38);
     if (config.autoFontSize) {
       const textLen = (notif.caption || '').length;
       if (textLen < 35) {
-        bodyFontSize = config.mode === 'double' ? 38 : 40;
-      } else if (textLen < 85) {
         bodyFontSize = config.mode === 'double' ? 36 : 38;
+      } else if (textLen < 85) {
+        bodyFontSize = config.mode === 'double' ? 32 : 34;
       } else if (textLen < 150) {
-        bodyFontSize = 32;
+        bodyFontSize = 30;
       } else {
-        bodyFontSize = 28;
+        bodyFontSize = 26;
       }
     }
 
@@ -620,20 +739,22 @@ async function renderNotificationCanvas(
     computedCards.reduce((acc, c) => acc + c.cardHeight, 0) +
     gapBetweenCards * Math.max(0, computedCards.length - 1);
 
-  let canvasHeight = 900;
-  if (config.aspectRatio === '1:1') {
-    canvasHeight = 1284;
-  } else if (config.aspectRatio === '16:9') {
-    canvasHeight = Math.round((1284 * 9) / 16);
-  } else {
-    const baseHeight = config.mode === 'double' ? 960 : 860;
-    canvasHeight = Math.max(baseHeight, totalCardsHeight + (config.mode === 'double' ? 440 : 640));
+  let canvasHeight = isKhoiHukJao ? 862 : 900;
+  if (!isKhoiHukJao) {
+    if (config.aspectRatio === '1:1') {
+      canvasHeight = 1284;
+    } else if (config.aspectRatio === '16:9') {
+      canvasHeight = Math.round((1284 * 9) / 16);
+    } else {
+      const baseHeight = config.mode === 'double' ? 960 : 860;
+      canvasHeight = Math.max(baseHeight, totalCardsHeight + (config.mode === 'double' ? 440 : 640));
+    }
   }
 
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
 
-  // 1. Draw Background (Solid Black or Custom Image with Overlay & Blur)
+  // 1. Draw Background
   await drawCanvasBackground(ctx, canvasWidth, canvasHeight, config);
 
   let currentCardY = Math.round((canvasHeight - totalCardsHeight) / 2);
@@ -645,10 +766,12 @@ async function renderNotificationCanvas(
 
     // Card Background
     ctx.save();
-    const cardRadius = 50;
+    const cardRadius = 46;
     drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, cardRadius);
 
-    if (config.cardTheme === 'glass' || config.customBgUrl) {
+    if (isKhoiHukJao) {
+      ctx.fillStyle = config.cardTheme === 'pitchBlack' ? '#111113' : 'rgba(28, 28, 30, 0.94)';
+    } else if (config.cardTheme === 'glass' || config.customBgUrl) {
       ctx.fillStyle = 'rgba(28, 28, 30, 0.88)';
     } else if (config.cardTheme === 'pitchBlack') {
       ctx.fillStyle = '#141415';
@@ -657,9 +780,7 @@ async function renderNotificationCanvas(
     }
     ctx.fill();
 
-    ctx.strokeStyle = config.customBgUrl
-      ? 'rgba(255, 255, 255, 0.15)'
-      : 'rgba(255, 255, 255, 0.09)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.restore();
@@ -677,7 +798,8 @@ async function renderNotificationCanvas(
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(notif.pageTitle || 'Khamko Production', contentX, headerY);
+    const displayTitle = notif.pageTitle || (isKhoiHukJao ? 'Khoi Huk Jao' : 'Khamko Production');
+    ctx.fillText(displayTitle, contentX, headerY);
 
     ctx.font = `400 ${timeFontSize}px ${primaryFontFamily}`;
     ctx.fillStyle = '#8e8e93';
@@ -713,11 +835,11 @@ export async function renderCaptionCanvas(
   canvas: HTMLCanvasElement,
   config: CaptionConfig
 ): Promise<void> {
-  try {
-    await document.fonts.ready;
-  } catch (e) {}
+  await ensureFontsLoaded(config.brand);
 
-  if (config.templateType === 'chat') {
+  if (config.templateType === 'directQuote') {
+    await renderDirectQuoteCanvas(canvas, config);
+  } else if (config.templateType === 'chat') {
     await renderChatCanvas(canvas, config);
   } else {
     await renderNotificationCanvas(canvas, config);

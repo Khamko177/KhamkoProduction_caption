@@ -8,6 +8,7 @@ export default {
     extend: {
       fontFamily: {
         lao: ['Noto Sans Lao', 'sans-serif'],
+        tiktok: ['Tiktok-Regular', 'Noto Sans Lao', 'sans-serif'],
         sans: ['SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Noto Sans Lao', 'sans-serif'],
       },
     },

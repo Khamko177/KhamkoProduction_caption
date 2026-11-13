@@ -1,28 +1,37 @@
 import React from 'react';
 import { SAMPLE_PRESETS } from '../data/presets';
-import { PresetItem } from '../types';
+import { PresetItem, BrandType } from '../types';
 import { Flame } from 'lucide-react';
 
 interface PresetSelectorProps {
+  brand: BrandType;
   onSelectPreset: (preset: PresetItem) => void;
   currentCaption: string;
 }
 
 export const PresetSelector: React.FC<PresetSelectorProps> = ({
+  brand,
   onSelectPreset,
   currentCaption,
 }) => {
+  const brandPresets = SAMPLE_PRESETS.filter((item) => item.brand === brand);
+
   return (
     <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-4 shadow-xl backdrop-blur-sm space-y-3">
-      <div className="flex items-center gap-2 pb-2 border-b border-slate-800/70">
-        <Flame className="w-4 h-4 text-orange-400" />
-        <h3 className="text-xs font-semibold text-slate-200 tracking-wide uppercase font-lao">
-          ຕົວຢ່າງແຄັບຊັ່ນຍອດຮິດ & ຕະຫຼົກ (ຄລິກເພື່ອເລືອກ)
-        </h3>
+      <div className="flex items-center justify-between pb-2 border-b border-slate-800/70">
+        <div className="flex items-center gap-2">
+          <Flame className="w-4 h-4 text-orange-400" />
+          <h3 className="text-xs font-semibold text-slate-200 tracking-wide uppercase font-lao">
+            ຕົວຢ່າງແຄັບຊັ່ນຍອດຮິດ & ຕະຫຼົກ ({brand === 'khoihukjao' ? 'Khoi Huk Jao' : 'Khamko'})
+          </h3>
+        </div>
+        <span className="text-[10px] text-slate-400 font-mono bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+          {brandPresets.length} ຕົວຢ່າງ
+        </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[260px] overflow-y-auto pr-1">
-        {SAMPLE_PRESETS.map((item) => {
+        {brandPresets.map((item) => {
           const isSelected = (currentCaption || '').trim() === item.caption.trim();
           return (
             <button

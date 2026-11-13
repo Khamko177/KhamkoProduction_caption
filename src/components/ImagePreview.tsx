@@ -24,9 +24,11 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [resolution, setResolution] = useState<{ width: number; height: number }>({
-    width: 1284,
-    height: 900,
+    width: config.brand === 'khoihukjao' ? 1080 : 1284,
+    height: config.brand === 'khoihukjao' ? 862 : 900,
   });
+
+  const isKhoiHukJao = config.brand === 'khoihukjao';
 
   useEffect(() => {
     let isMounted = true;
@@ -59,11 +61,13 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
       const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
       const dataUrl = exportCanvasAsImage(canvasRef.current, mimeType, 0.95);
 
-      const firstCaption = config.notifications[0]?.caption || 'khamko-caption';
-      const filenameSlug = (firstCaption.slice(0, 20) || 'khamko-caption')
+      const prefix = isKhoiHukJao ? 'khoihukjao' : 'khamko';
+      const rawCaption = config.quoteText || config.notifications[0]?.caption || 'caption';
+      const filenameSlug = (rawCaption.slice(0, 20) || prefix)
         .replace(/[^a-zA-Z0-9\u0E80-\u0EFF\u00C0-\u1EF9]/g, '_');
+
       const link = document.createElement('a');
-      link.download = `khamko_${Date.now()}_${filenameSlug}.${format}`;
+      link.download = `${prefix}_${Date.now()}_${filenameSlug}.${format}`;
       link.href = dataUrl;
       link.click();
 
@@ -99,17 +103,23 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
     <div className="bg-slate-900/70 border border-slate-800/80 rounded-2xl p-5 shadow-2xl backdrop-blur-sm flex flex-col justify-between space-y-4">
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/70">
         <div className="flex items-center gap-2">
-          <Eye className="w-4 h-4 text-emerald-400" />
+          <Eye className={`w-4 h-4 ${isKhoiHukJao ? 'text-amber-400' : 'text-emerald-400'}`} />
           <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase font-lao">
-            ຮູບຕົວຢ່າງ (Live Preview)
+            ຮູບຕົວຢ່າງ ({isKhoiHukJao ? 'Khoi Huk Jao' : 'Khamko'})
           </h2>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-mono text-slate-400 bg-slate-950 px-2.5 py-1 rounded-md border border-slate-800">
             {resolution.width} × {resolution.height}px
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-lao">
-            HD 100%
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border font-lao ${
+              isKhoiHukJao
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}
+          >
+            {isKhoiHukJao ? 'Banner 1080x862' : 'HD 100%'}
           </span>
         </div>
       </div>
@@ -120,7 +130,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
         {previewUrl ? (
           <img
             src={previewUrl}
-            alt="Khamko Caption Preview"
+            alt="Caption Preview"
             className="w-full max-w-full max-h-[480px] object-contain rounded-lg shadow-2xl transition-all select-none pointer-events-auto"
           />
         ) : (
@@ -145,12 +155,12 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-white" />
-                <span>ສຳເນົາຮູບແລ້ວ!</span>
+                <span>ສຳເນົາຮູບແລ້ວ! (Paste ໄດ້ເລີຍ)</span>
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4 text-blue-400" />
-                <span>ສຳເນົາຮູບ (Copy ຮູບ)</span>
+                <Copy className="w-4 h-4 text-slate-300" />
+                <span>ກັອບປີ້ຮູບ (Ctrl + V)</span>
               </>
             )}
           </button>
@@ -159,16 +169,27 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             type="button"
             onClick={() => handleDownload('png')}
             disabled={downloading}
-            className="w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/25 active:scale-95 transition-all cursor-pointer font-lao"
+            className={`w-full py-3 px-4 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 text-white shadow-lg active:scale-95 transition-all cursor-pointer font-lao ${
+              isKhoiHukJao
+                ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 shadow-amber-600/30'
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/30'
+            }`}
           >
             <Download className="w-4 h-4" />
-            <span>{downloading ? 'ກຳລັງດາວໂຫຼດ...' : 'ດາວໂຫຼດຮູບ PNG (HD)'}</span>
+            <span>{downloading ? 'ກຳລັງດາວໂຫຼດ...' : 'ດາວໂຫຼດຮູບ PNG'}</span>
           </button>
         </div>
 
-        <p className="text-center text-[11px] text-slate-500 pt-1 font-lao">
-          💡 ຄຳແນະນຳ: ກົດ <strong className="text-slate-400">ສຳເນົາຮູບ (Copy)</strong> ແລ້ວໄປທີ່ Facebook / WhatsApp ກົດ <kbd className="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-300 font-mono text-[10px]">Ctrl + V</kbd> ເພື່ອໂພສໄດ້ທັນທີ!
-        </p>
+        <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1 font-lao">
+          <span>ກົດ ກັອບປີ້ຮູບ ແລ້ວກົດ Paste (Ctrl+V) ລົງ Facebook / Zalo ໄດ້ທັນທີ</span>
+          <button
+            type="button"
+            onClick={() => handleDownload('jpeg')}
+            className="text-slate-400 hover:text-slate-300 underline cursor-pointer"
+          >
+            ດາວໂຫຼດ JPG
+          </button>
+        </div>
       </div>
     </div>
   );
