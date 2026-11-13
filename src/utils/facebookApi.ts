@@ -132,7 +132,21 @@ export async function testFacebookConnection(
         // If this is a PAGE Token
         if (d.type === 'PAGE') {
           const targetPageId = d.profile_id || cleanPageId;
-          const pageTitle = d.application || (brandHint === 'khamko' ? 'Khamko Production' : 'Facebook Page');
+          let pageTitle = brandHint === 'khoihukjao' ? 'Khoi Huk Jao' : (brandHint === 'khamko' ? 'Khamko Production' : 'Facebook Page');
+          try {
+            const pageRes = await fetch(
+              `https://graph.facebook.com/v19.0/${targetPageId}?fields=id,name&access_token=${encodeURIComponent(
+                cleanToken
+              )}`
+            );
+            const pageData = await pageRes.json();
+            if (pageData?.name) {
+              pageTitle = pageData.name;
+            }
+          } catch {
+            // fallback
+          }
+
           const scopes = d.scopes || [];
 
           // Verify if it has posting capability
