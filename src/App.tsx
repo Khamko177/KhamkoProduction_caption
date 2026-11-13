@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { CaptionConfig, BrandType, PresetItem } from './types';
 import { Header } from './components/Header';
 import { EditorForm } from './components/EditorForm';
@@ -6,7 +6,10 @@ import { ImagePreview } from './components/ImagePreview';
 import { PresetSelector } from './components/PresetSelector';
 import { BrandSelector } from './components/BrandSelector';
 import { BatchExportModal } from './components/BatchExportModal';
-import { Sparkles, Zap } from 'lucide-react';
+import { FacebookSettingsModal } from './components/FacebookSettingsModal';
+import { FacebookPostModal } from './components/FacebookPostModal';
+import { getFacebookSettings } from './utils/facebookApi';
+import { Sparkles, Zap, Facebook } from 'lucide-react';
 
 const KHAMKO_DEFAULT_CONFIG: CaptionConfig = {
   brand: 'khamko',
@@ -119,8 +122,19 @@ export const App: React.FC = () => {
   // Option selection view on initial entrance
   const [showBrandSelector, setShowBrandSelector] = useState<boolean>(true);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
+  const [isFacebookSettingsOpen, setIsFacebookSettingsOpen] = useState<boolean>(false);
+  const [isFacebookPostOpen, setIsFacebookPostOpen] = useState<boolean>(false);
+  const [settingsVersion, setSettingsVersion] = useState<number>(0);
   const [currentBrand, setCurrentBrand] = useState<BrandType>('khamko');
   const [config, setConfig] = useState<CaptionConfig>(KHAMKO_DEFAULT_CONFIG);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Check Facebook connection status for current brand
+  const fbSettings = getFacebookSettings();
+  const isFacebookConnected = Boolean(
+    fbSettings[currentBrand]?.isConnected && fbSettings[currentBrand]?.pageId
+  );
 
   const handleSelectBrand = (brand: BrandType) => {
     setCurrentBrand(brand);
@@ -194,6 +208,8 @@ export const App: React.FC = () => {
         onChangeBrand={handleSwitchBrand}
         onOpenBrandSelector={() => setShowBrandSelector(true)}
         onOpenBatchModal={() => setIsBatchModalOpen(true)}
+        onOpenFacebookSettings={() => setIsFacebookSettingsOpen(true)}
+        isFacebookConnected={isFacebookConnected}
       />
 
       {/* Main Workspace or Brand Selector Screen */}
@@ -211,7 +227,7 @@ export const App: React.FC = () => {
             {/* Left Column: Form Controls, Batch Banner & Presets */}
             <div className="lg:col-span-6 space-y-6">
               
-              {/* Batch Export CTA Banner */}
+              {/* Batch Export & Auto-Schedule CTA Banner */}
               <div className="bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-600/25 border border-indigo-500/40 flex items-center justify-center text-yellow-300 shrink-0 shadow-md">
@@ -219,10 +235,10 @@ export const App: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-white font-lao">
-                      ສ້າງຫຼາຍຮູບພາບພ້ອມກັນ & ດາວໂຫຼດ .ZIP
+                      ສ້າງຫຼາຍຮູບ & ຕັ້ງເວລາລົງ Meta Planner
                     </h4>
                     <p className="text-[11px] text-slate-400 font-lao">
-                      Import ໄຟລ໌ .txt/.csv ຫຼື ວາງຫຼາຍແຄັບຊັ່ນເພື່ອສ້າງຮູບພາບພ້ອມກັນ
+                      ສ້າງຊຸດຮູບພາບ (.ZIP) ຫຼື ຕັ້ງເວລາໂພສລ່ວງໜ້າອັດຕະໂນມັດລົງ Facebook Calendar
                     </p>
                   </div>
                 </div>
@@ -250,7 +266,11 @@ export const App: React.FC = () => {
 
             {/* Right Column: Sticky Live Preview */}
             <div className="lg:col-span-6 lg:sticky lg:top-24 space-y-4">
-              <ImagePreview config={config} />
+              <ImagePreview
+                config={config}
+                canvasRef={canvasRef}
+                onOpenFacebookPost={() => setIsFacebookPostOpen(true)}
+              />
             </div>
 
           </div>
@@ -262,6 +282,24 @@ export const App: React.FC = () => {
         isOpen={isBatchModalOpen}
         onClose={() => setIsBatchModalOpen(false)}
         baseConfig={config}
+        onOpenFacebookSettings={() => setIsFacebookSettingsOpen(true)}
+      />
+
+      {/* Facebook Settings Modal */}
+      <FacebookSettingsModal
+        isOpen={isFacebookSettingsOpen}
+        onClose={() => setIsFacebookSettingsOpen(false)}
+        currentBrand={currentBrand}
+        onSettingsSaved={() => setSettingsVersion((v) => v + 1)}
+      />
+
+      {/* Facebook Single Post / Schedule Modal */}
+      <FacebookPostModal
+        isOpen={isFacebookPostOpen}
+        onClose={() => setIsFacebookPostOpen(false)}
+        baseConfig={config}
+        canvasRef={canvasRef}
+        onOpenSettings={() => setIsFacebookSettingsOpen(true)}
       />
 
       {/* Footer */}

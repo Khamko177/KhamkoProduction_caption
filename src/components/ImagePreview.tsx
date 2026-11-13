@@ -10,16 +10,24 @@ import {
   Copy,
   Check,
   Eye,
-  Sparkles
+  Sparkles,
+  Facebook,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface ImagePreviewProps {
   config: CaptionConfig;
+  canvasRef?: React.RefObject<HTMLCanvasElement>;
+  onOpenFacebookPost?: () => void;
 }
 
-export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export const ImagePreview: React.FC<ImagePreviewProps> = ({
+  config,
+  canvasRef,
+  onOpenFacebookPost,
+}) => {
+  const localCanvasRef = useRef<HTMLCanvasElement>(null);
+  const activeCanvasRef = canvasRef || localCanvasRef;
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>('');
@@ -34,14 +42,14 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
     let isMounted = true;
 
     const render = async () => {
-      if (canvasRef.current) {
-        await renderCaptionCanvas(canvasRef.current, config);
-        if (isMounted && canvasRef.current) {
+      if (activeCanvasRef.current) {
+        await renderCaptionCanvas(activeCanvasRef.current, config);
+        if (isMounted && activeCanvasRef.current) {
           setResolution({
-            width: canvasRef.current.width,
-            height: canvasRef.current.height,
+            width: activeCanvasRef.current.width,
+            height: activeCanvasRef.current.height,
           });
-          setPreviewUrl(canvasRef.current.toDataURL('image/png'));
+          setPreviewUrl(activeCanvasRef.current.toDataURL('image/png'));
         }
       }
     };
@@ -51,15 +59,15 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
     return () => {
       isMounted = false;
     };
-  }, [config]);
+  }, [config, activeCanvasRef]);
 
   const handleDownload = (format: 'png' | 'jpeg' = 'png') => {
-    if (!canvasRef.current) return;
+    if (!activeCanvasRef.current) return;
     setDownloading(true);
 
     try {
       const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
-      const dataUrl = exportCanvasAsImage(canvasRef.current, mimeType, 0.95);
+      const dataUrl = exportCanvasAsImage(activeCanvasRef.current, mimeType, 0.95);
 
       const prefix = isKhoiHukJao ? 'khoihukjao' : 'khamko';
       const rawCaption = config.quoteText || config.notifications[0]?.caption || 'caption';
@@ -84,8 +92,8 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
   };
 
   const handleCopyClipboard = async () => {
-    if (!canvasRef.current) return;
-    const success = await copyCanvasToClipboard(canvasRef.current);
+    if (!activeCanvasRef.current) return;
+    const success = await copyCanvasToClipboard(activeCanvasRef.current);
     if (success) {
       setCopied(true);
       confetti({
@@ -125,7 +133,7 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
       </div>
 
       <div className="relative w-full flex items-center justify-center bg-black rounded-xl border border-slate-800/90 p-2 sm:p-4 overflow-hidden shadow-inner min-h-[280px]">
-        <canvas ref={canvasRef} className="hidden" />
+        <canvas ref={activeCanvasRef} className="hidden" />
 
         {previewUrl ? (
           <img
@@ -179,6 +187,17 @@ export const ImagePreview: React.FC<ImagePreviewProps> = ({ config }) => {
             <span>{downloading ? 'ກຳລັງດາວໂຫຼດ...' : 'ດາວໂຫຼດຮູບ PNG'}</span>
           </button>
         </div>
+
+        {onOpenFacebookPost && (
+          <button
+            type="button"
+            onClick={onOpenFacebookPost}
+            className="w-full py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 bg-[#1877F2]/15 hover:bg-[#1877F2]/25 text-[#1877F2] hover:text-white border border-[#1877F2]/30 hover:border-[#1877F2]/60 transition-all shadow-md active:scale-95 cursor-pointer font-lao"
+          >
+            <Facebook className="w-4 h-4" />
+            <span>ໂພສ / ຕັ້ງເວລາລົງ Meta Planner</span>
+          </button>
+        )}
 
         <div className="flex items-center justify-between text-[11px] text-slate-500 px-1 pt-1 font-lao">
           <span>ກົດ ກັອບປີ້ຮູບ ແລ້ວກົດ Paste (Ctrl+V) ລົງ Facebook / Zalo ໄດ້ທັນທີ</span>

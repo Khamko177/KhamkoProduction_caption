@@ -8,6 +8,10 @@ import {
 } from '../utils/canvasRenderer';
 import { SAMPLE_PRESETS } from '../data/presets';
 import {
+  getFacebookSettings,
+  publishPhotoToFacebook,
+} from '../utils/facebookApi';
+import {
   X,
   Zap,
   Upload,
@@ -20,7 +24,13 @@ import {
   Layers,
   ArrowRight,
   FolderArchive,
-  RefreshCw
+  RefreshCw,
+  Facebook,
+  Calendar,
+  Clock,
+  AlertCircle,
+  ExternalLink,
+  Settings,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -28,12 +38,14 @@ interface BatchExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   baseConfig: CaptionConfig;
+  onOpenFacebookSettings?: () => void;
 }
 
 export const BatchExportModal: React.FC<BatchExportModalProps> = ({
   isOpen,
   onClose,
   baseConfig,
+  onOpenFacebookSettings,
 }) => {
   if (!isOpen) return null;
 
@@ -55,6 +67,27 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
   });
   const [generatedResults, setGeneratedResults] = useState<GeneratedBatchItem[] | null>(null);
   const [zipBlob, setZipBlob] = useState<Blob | null>(null);
+
+  // Batch Facebook Scheduling State
+  const [showScheduleSection, setShowScheduleSection] = useState<boolean>(false);
+  const [isScheduling, setIsScheduling] = useState<boolean>(false);
+  const [scheduleProgress, setScheduleProgress] = useState<{
+    current: number;
+    total: number;
+    statusText: string;
+  }>({ current: 0, total: 0, statusText: '' });
+  const [scheduleSummary, setScheduleSummary] = useState<{
+    successCount: number;
+    failCount: number;
+    errors: string[];
+  } | null>(null);
+
+  // Default date/time: tomorrow at 10:11 (matching user screenshot)
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [batchStartDate, setBatchStartDate] = useState<string>(tomorrow.toISOString().split('T')[0]);
+  const [batchStartTime, setBatchStartTime] = useState<string>('10:11');
+  const [batchIntervalHours, setBatchIntervalHours] = useState<number>(4);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -195,6 +228,113 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
       alert('ເກີດຂໍ້ຜິດພາດໃນການສ້າງຮູບພາບ. ກະລຸນາລອງໃໝ່ອີກຄັ້ງ!');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // Start Batch Scheduling to Facebook Graph API
+  const handleBatchScheduleToFacebook = async () => {
+    if (captions.length === 0 || isScheduling) return;
+
+    const fbSettings = getFacebookSettings();
+    const fbConfig = fbSettings[baseConfig.brand];
+
+    if (!fbConfig.pageId || !fbConfig.accessToken) {
+      alert('ກະລຸນາຕັ້ງຄ່າ Facebook Page ID ແລະ Access Token ກ່ອນເດີ!');
+      if (onOpenFacebookSettings) {
+        onClose();
+        onOpenFacebookSettings();
+      }
+      return;
+    }
+
+    setIsScheduling(true);
+    setScheduleSummary(null);
+    setScheduleProgress({ current: 0, total: captions.length, statusText: 'ກຳລັງເລີ່ມຕົ້ນ...' });
+
+    const errors: string[] = [];
+    let successCount = 0;
+    let failCount = 0;
+
+    // Base start timestamp in seconds
+    const startDateTime = new Date(`${batchStartDate}T${batchStartTime}:00`);
+    const baseStartSec = Math.floor(startDateTime.getTime() / 1000);
+
+    // Create an offscreen canvas for rendering
+    const offscreen = document.createElement('canvas');
+
+    for (let i = 0; i < captions.length; i++) {
+      const captionText = captions[i];
+      const scheduledSec = baseStartSec + i * (batchIntervalHours * 3600);
+
+      const scheduleDateObj = new Date(scheduledSec * 1000);
+      const timeLabel = `${scheduleDateObj.toLocaleDateString('th-TH')} ${scheduleDateObj.getHours()}:${String(
+        scheduleDateObj.getMinutes()
+      ).padStart(2, '0')}`;
+
+      setScheduleProgress({
+        current: i + 1,
+        total: captions.length,
+        statusText: `ກຳລັງຕັ້ງເວລາຮູບທີ ${i + 1}/${captions.length} (${timeLabel})...`,
+      });
+
+      try {
+        const itemConfig: CaptionConfig = {
+          ...baseConfig,
+          quoteText: captionText,
+          notifications: baseConfig.notifications.map((n, idx) =>
+            idx === 0 ? { ...n, caption: captionText } : n
+          ),
+        };
+
+        // Render to canvas
+        await renderCaptionCanvas(offscreen, itemConfig);
+
+        // Convert to Blob
+        const blob = await new Promise<Blob | null>((resolve) =>
+          offscreen.toBlob(resolve, 'image/png', 0.95)
+        );
+
+        if (!blob) {
+          throw new Error(`ບໍ່ສາມາດສ້າງຮູບພາບ #${i + 1} ໄດ້`);
+        }
+
+        // Post to Facebook Graph API
+        const res = await publishPhotoToFacebook({
+          pageId: fbConfig.pageId,
+          accessToken: fbConfig.accessToken,
+          imageBlob: blob,
+          caption: captionText,
+          scheduledPublishTime: scheduledSec,
+        });
+
+        if (res.success) {
+          successCount++;
+        } else {
+          failCount++;
+          errors.push(`ຮູບ #${i + 1}: ${res.error || 'Unknown error'}`);
+        }
+      } catch (err: any) {
+        failCount++;
+        errors.push(`ຮູບ #${i + 1}: ${err.message || 'Error rendering/posting'}`);
+      }
+
+      // Small pause between requests
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    setIsScheduling(false);
+    setScheduleSummary({
+      successCount,
+      failCount,
+      errors,
+    });
+
+    if (successCount > 0) {
+      confetti({
+        particleCount: 60,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
     }
   };
 
@@ -505,12 +645,12 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                 </div>
               )}
 
-              {/* Main Submit Button */}
+              {/* Main Submit Button (ZIP) */}
               <button
                 type="button"
                 onClick={handleStartBatch}
-                disabled={captions.length === 0 || isGenerating}
-                className={`w-full py-4 px-5 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer font-lao active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                disabled={captions.length === 0 || isGenerating || isScheduling}
+                className={`w-full py-3.5 px-5 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer font-lao active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isKhoiHukJao
                     ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-500 hover:to-orange-500 shadow-amber-600/30'
                     : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/30'
@@ -532,6 +672,164 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                   </>
                 )}
               </button>
+
+              {/* Meta Planner Batch Scheduling Section Toggle */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleSection(!showScheduleSection)}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 cursor-pointer font-lao ${
+                    showScheduleSection
+                      ? 'bg-[#1877F2]/25 border-[#1877F2] text-white shadow-lg shadow-[#1877F2]/10 ring-1 ring-[#1877F2]/40'
+                      : 'bg-slate-900 hover:bg-slate-800 border-slate-700/80 text-blue-300 hover:text-white'
+                  }`}
+                >
+                  <Facebook className="w-4 h-4 text-[#1877F2]" />
+                  <span>📅 ຕັ້ງເວລາທັງໝົດລົງ Meta Planner</span>
+                  <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded font-mono">
+                    Auto-Schedule
+                  </span>
+                </button>
+              </div>
+
+              {/* Meta Planner Batch Scheduling Panel */}
+              {showScheduleSection && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-xs font-bold text-white font-lao flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-amber-400" />
+                      <span>ຕັ້ງເວລາໂພສລົງ Meta Business Suite</span>
+                    </span>
+                    {onOpenFacebookSettings && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenFacebookSettings();
+                        }}
+                        className="text-[11px] text-blue-400 hover:underline flex items-center gap-1 font-lao cursor-pointer"
+                      >
+                        <Settings className="w-3 h-3" />
+                        <span>ຕັ້ງຄ່າເພຈ</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Date & Start Time */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-lao">ເລີ່ມວັນທີ:</label>
+                      <input
+                        type="date"
+                        value={batchStartDate}
+                        onChange={(e) => setBatchStartDate(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-400 font-lao">ເລີ່ມເວລາ:</label>
+                      <input
+                        type="time"
+                        value={batchStartTime}
+                        onChange={(e) => setBatchStartTime(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interval selector */}
+                  <div className="space-y-1 font-lao">
+                    <label className="text-[10px] text-slate-400">ໄລຍະຫ່າງລະຫວ່າງແຕ່ລະໂພສ (Interval):</label>
+                    <select
+                      value={batchIntervalHours}
+                      onChange={(e) => setBatchIntervalHours(Number(e.target.value))}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer font-lao"
+                    >
+                      <option value={1}>ທຸກໆ 1 ຊົ່ວໂມງ (Every 1 hour)</option>
+                      <option value={2}>ທຸກໆ 2 ຊົ່ວໂມງ (Every 2 hours)</option>
+                      <option value={4}>ທຸກໆ 4 ຊົ່ວໂມງ (Every 4 hours - ແນະນຳ)</option>
+                      <option value={6}>ທຸກໆ 6 ຊົ່ວໂມງ (Every 6 hours)</option>
+                      <option value={12}>ທຸກໆ 12 ຊົ່ວໂມງ (2 ໂພສຕໍ່ມື້)</option>
+                      <option value={24}>ທຸກໆ 24 ຊົ່ວໂມງ (1 ໂພສຕໍ່ມື້ ຕາມເວລາດຽວກັນ)</option>
+                    </select>
+                  </div>
+
+                  {/* Progress status when scheduling */}
+                  {isScheduling && (
+                    <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2 animate-in fade-in">
+                      <div className="flex items-center justify-between text-xs font-semibold text-blue-300 font-lao">
+                        <span className="flex items-center gap-1.5">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                          <span>{scheduleProgress.statusText}</span>
+                        </span>
+                        <span className="font-mono text-blue-400">
+                          {scheduleProgress.current}/{scheduleProgress.total}
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-500 transition-all duration-300"
+                          style={{
+                            width: `${Math.round(
+                              (scheduleProgress.current / Math.max(1, scheduleProgress.total)) * 100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Summary Result */}
+                  {scheduleSummary && !isScheduling && (
+                    <div
+                      className={`p-3 rounded-xl border text-xs font-lao space-y-1.5 animate-in fade-in ${
+                        scheduleSummary.failCount === 0
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>
+                          ຕັ້ງເວລາສຳເລັດ {scheduleSummary.successCount} / {captions.length} ໂພສ!
+                        </span>
+                      </div>
+                      <p className="text-[11px] opacity-90 leading-relaxed">
+                        ໂພສທັງໝົດໄດ້ຖືກສົ່ງເຂົ້າສູ່ Meta Planner ແລ້ວ ຕາມຊ່ວງເວລາທີ່ກຳນົດ.
+                      </p>
+                      <a
+                        href="https://business.facebook.com/latest/content_calendar"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1 font-semibold pt-1"
+                      >
+                        <span>ເບິ່ງປະຕິທິນໃນ Meta Planner</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Action Button */}
+                  <button
+                    type="button"
+                    onClick={handleBatchScheduleToFacebook}
+                    disabled={captions.length === 0 || isScheduling || isGenerating}
+                    className="w-full py-3 px-4 rounded-xl font-bold text-xs text-white bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer font-lao disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isScheduling ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>ກຳລັງຕັ້ງເວລາລົງ Meta Planner...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>🚀 ຢືນຢັນຕັ້ງເວລາ {captions.length} ໂພສລົງ Meta Planner</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
             </div>
 

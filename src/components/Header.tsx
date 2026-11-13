@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrandType } from '../types';
-import { MessageSquareText, Sparkles, RefreshCw, Zap } from 'lucide-react';
+import { MessageSquareText, Sparkles, RefreshCw, Zap, Facebook } from 'lucide-react';
 import khoiHukJaoBannerUrl from '../KhoiHukJao/banner.jpg';
 
 interface HeaderProps {
@@ -8,6 +8,8 @@ interface HeaderProps {
   onChangeBrand: (brand: BrandType) => void;
   onOpenBrandSelector: () => void;
   onOpenBatchModal: () => void;
+  onOpenFacebookSettings?: () => void;
+  isFacebookConnected?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,6 +17,8 @@ export const Header: React.FC<HeaderProps> = ({
   onChangeBrand,
   onOpenBrandSelector,
   onOpenBatchModal,
+  onOpenFacebookSettings,
+  isFacebookConnected = false,
 }) => {
   const isKhamko = currentBrand === 'khamko';
 
@@ -107,6 +111,28 @@ export const Header: React.FC<HeaderProps> = ({
             <Zap className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
             <span>ສ້າງຫຼາຍຮູບ (ZIP)</span>
           </button>
+
+          {/* Facebook Settings / Meta Planner Button */}
+          {onOpenFacebookSettings && (
+            <button
+              type="button"
+              onClick={onOpenFacebookSettings}
+              className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl font-lao transition-all border shadow-sm cursor-pointer ${
+                isFacebookConnected
+                  ? 'bg-blue-950/60 hover:bg-blue-900/60 text-blue-300 border-blue-500/40 hover:border-blue-400'
+                  : 'bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border-slate-700/80 hover:border-slate-600'
+              }`}
+              title="ຕັ້ງຄ່າເຊື່ອມຕໍ່ Facebook Graph API & Meta Planner"
+            >
+              <Facebook className={`w-3.5 h-3.5 ${isFacebookConnected ? 'text-blue-400' : 'text-slate-400'}`} />
+              <span className="hidden lg:inline">Meta Planner</span>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  isFacebookConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
+                }`}
+              />
+            </button>
+          )}
 
           {/* Change Page Button */}
           <button
