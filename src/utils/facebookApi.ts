@@ -320,56 +320,128 @@ export async function publishPhotoToFacebook({
     };
   }
 
-  const formData = new FormData();
-  formData.append('access_token', cleanToken);
-  formData.append('source', imageBlob, 'caption_meme.png');
-  formData.append('message', caption);
+  // 1. If Publish Immediately
+  if (!scheduledPublishTime) {
+    try {
+      const formData = new FormData();
+      formData.append('access_token', cleanToken);
+      formData.append('source', imageBlob, 'caption_meme.png');
+      formData.append('message', caption);
+      formData.append('published', 'true');
 
-  // If scheduled time is provided
-  if (scheduledPublishTime) {
-    const nowInSec = Math.floor(Date.now() / 1000);
-    const minTime = nowInSec + 10 * 60; // 10 minutes in future
-    const maxTime = nowInSec + 75 * 24 * 60 * 60; // 75 days in future
+      const url = `https://graph.facebook.com/v19.0/${cleanPageId}/photos`;
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
 
-    if (scheduledPublishTime < minTime) {
+      const data = await res.json();
+      if (data.error) {
+        return {
+          success: false,
+          error: data.error.message || 'ເກີດຂໍ້ຜິດພາດຈາກ Facebook API',
+        };
+      }
+
+      return {
+        success: true,
+        postId: data.post_id || data.id,
+      };
+    } catch (err: any) {
       return {
         success: false,
-        error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງຫຼາຍກວ່າ 10 ນາທີ ນັບຈາກເວລານີ້ (เวลาที่ตั้งล่วงหน้าต้องมากกว่า 10 นาที)',
+        error: err.message || 'ເກີດຂໍ້ຜິດພາດໃນການສົ່ງຂໍ້ມູນໄປຍັງ Facebook',
       };
     }
+  }
 
-    if (scheduledPublishTime > maxTime) {
-      return {
-        success: false,
-        error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງບໍ່ເກີນ 75 ມື້ (เวลาที่ตั้งล่วงหน้าต้องไม่เกิน 75 วัน)',
-      };
-    }
+  // 2. If Scheduled Publishing (Targeting Meta Business Suite Planner):
+  // Timing validation
+  const nowInSec = Math.floor(Date.now() / 1000);
+  const minTime = nowInSec + 10 * 60; // 10 minutes in future
+  const maxTime = nowInSec + 75 * 24 * 60 * 60; // 75 days in future
 
-    formData.append('published', 'false');
-    formData.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
-  } else {
-    formData.append('published', 'true');
+  if (scheduledPublishTime < minTime) {
+    return {
+      success: false,
+      error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງຫຼາຍກວ່າ 10 ນາທີ ນັບຈາກເວລານີ້ (เวลาที่ตั้งล่วงหน้าต้องมากกว่า 10 นาที)',
+    };
+  }
+
+  if (scheduledPublishTime > maxTime) {
+    return {
+      success: false,
+      error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງບໍ່ເກີນ 75 ມື້ (เวลาที่ตั้งล่วงหน้าต้องไม่เกิน 75 วัน)',
+    };
   }
 
   try {
-    const url = `https://graph.facebook.com/v19.0/${cleanPageId}/photos`;
-    const res = await fetch(url, {
+    // Step A: Upload photo as unpublished asset first to get photo ID
+    const photoForm = new FormData();
+    photoForm.append('access_token', cleanToken);
+    photoForm.append('source', imageBlob, 'caption_meme.png');
+    photoForm.append('published', 'false');
+
+    const photoRes = await fetch(`https://graph.facebook.com/v19.0/${cleanPageId}/photos`, {
       method: 'POST',
-      body: formData,
+      body: photoForm,
     });
+    const photoData = await photoRes.json();
 
-    const data = await res.json();
-
-    if (data.error) {
+    if (photoData.error) {
       return {
         success: false,
-        error: data.error.message || 'ເກີດຂໍ້ຜິດພາດຈາກ Facebook API',
+        error: photoData.error.message || 'ບໍ່ສາມາດອັບໂຫຼດຮູບພາບໄປຍັງ Facebook ໄດ້',
+      };
+    }
+
+    const photoId = photoData.id;
+
+    // Step B: Create Scheduled Feed Post with attached_media
+    // Meta Business Suite Planner & Scheduled Posts list specifically display Feed Posts!
+    const feedForm = new FormData();
+    feedForm.append('access_token', cleanToken);
+    feedForm.append('message', caption);
+    feedForm.append('attached_media', JSON.stringify([{ media_fbid: photoId }]));
+    feedForm.append('published', 'false');
+    feedForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
+
+    const feedRes = await fetch(`https://graph.facebook.com/v19.0/${cleanPageId}/feed`, {
+      method: 'POST',
+      body: feedForm,
+    });
+    const feedData = await feedRes.json();
+
+    if (feedData.error) {
+      // Fallback: If /{page-id}/feed rejected attached_media, schedule directly on the photo
+      const fallbackForm = new FormData();
+      fallbackForm.append('access_token', cleanToken);
+      fallbackForm.append('message', caption);
+      fallbackForm.append('published', 'false');
+      fallbackForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
+
+      const fallbackRes = await fetch(`https://graph.facebook.com/v19.0/${photoId}`, {
+        method: 'POST',
+        body: fallbackForm,
+      });
+      const fallbackData = await fallbackRes.json();
+
+      if (fallbackData.error) {
+        return {
+          success: false,
+          error: feedData.error.message || fallbackData.error.message || 'ບໍ່ສາມາດຕັ້ງເວລາລົງ Planner ໄດ້',
+        };
+      }
+
+      return {
+        success: true,
+        postId: photoId,
       };
     }
 
     return {
       success: true,
-      postId: data.post_id || data.id,
+      postId: feedData.id,
     };
   } catch (err: any) {
     return {
