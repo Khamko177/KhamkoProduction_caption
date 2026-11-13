@@ -361,8 +361,8 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
         errors.push(`ຮູບ #${i + 1}: ${err.message || 'Error rendering/posting'}`);
       }
 
-      // Small pause between requests
-      await new Promise((r) => setTimeout(r, 400));
+      // Pause between requests to prevent Facebook rate limiting
+      await new Promise((r) => setTimeout(r, 700));
     }
 
     setIsScheduling(false);
@@ -1013,29 +1013,48 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                       className={`p-3 rounded-xl border text-xs font-lao space-y-1.5 animate-in fade-in ${
                         scheduleSummary.failCount === 0
                           ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                          : scheduleSummary.successCount === 0
+                          ? 'bg-red-500/10 border-red-500/30 text-red-300'
                           : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
                       }`}
                     >
                       <div className="flex items-center gap-1.5 font-bold">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        {scheduleSummary.successCount > 0 ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-red-400" />
+                        )}
                         <span>
-                          ຕັ້ງເວລາສຳເລັດ {scheduleSummary.successCount} / {captions.length} ໂພສ!
+                          {scheduleSummary.successCount > 0
+                            ? `ຕັ້ງເວລາສຳເລັດ ${scheduleSummary.successCount} / ${captions.length} ໂພສ!`
+                            : `ຕັ້ງເວລາລົ້ມເຫຼວ 0 / ${captions.length} ໂພສ`}
                         </span>
                       </div>
                       <p className="text-[11px] opacity-90 leading-relaxed">
-                        {scheduleStrategy === 'fixed5'
-                          ? `ໂພສທັງໝົດໄດ້ຖືກແບ່ງລົງຕາມ 5 ຮອບຄົງທີ່ (07:45, 12:00, 17:15, 20:15, 22:45) ໃນ Meta Business Suite Planner ແລ້ວ.`
-                          : `ໂພສທັງໝົດໄດ້ຖືກສົ່ງເຂົ້າສູ່ Meta Planner ແລ້ວ ຕາມຊ່ວງເວລາທີ່ກຳນົດ.`}
+                        {scheduleSummary.successCount > 0
+                          ? scheduleStrategy === 'fixed5'
+                            ? `ໂພສທີ່ສຳເລັດໄດ້ຖືກແບ່ງລົງຕາມ 5 ຮອບຄົງທີ່ (07:45, 12:00, 17:15, 20:15, 22:45) ໃນ Meta Business Suite Planner ແລ້ວ.`
+                            : `ໂພສທີ່ສຳເລັດໄດ້ຖືກສົ່ງເຂົ້າສູ່ Meta Planner ແລ້ວ ຕາມຊ່ວງເວລາທີ່ກຳນົດ.`
+                          : `ເກີດຂໍ້ຜິດພາດຈາກ Facebook API:`}
                       </p>
-                      <a
-                        href="https://business.facebook.com/latest/content_calendar"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1 font-semibold pt-1"
-                      >
-                        <span>ເບິ່ງປະຕິທິນໃນ Meta Planner</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      {scheduleSummary.errors && scheduleSummary.errors.length > 0 && (
+                        <div className="bg-black/50 border border-slate-800 rounded-lg p-2 max-h-24 overflow-y-auto text-[10px] text-red-300 font-mono space-y-1">
+                          {scheduleSummary.errors.slice(0, 3).map((err, i) => (
+                            <div key={i}>{err}</div>
+                          ))}
+                        </div>
+                      )}
+                      {scheduleSummary.successCount > 0 && (
+                        <a
+                          href="https://business.facebook.com/latest/content_calendar"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-400 hover:underline inline-flex items-center gap-1 font-semibold pt-1"
+                        >
+                          <span>ເບິ່ງປະຕິທິນໃນ Meta Planner</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   )}
 

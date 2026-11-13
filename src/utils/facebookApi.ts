@@ -426,11 +426,15 @@ export async function publishPhotoToFacebook({
 
     // Step B: Create Scheduled Feed Post with attached_media
     // Meta Business Suite Planner & Scheduled Posts list specifically display Feed Posts!
+    // NOTE: Facebook Graph API /{page-id}/feed requires the 'message' parameter.
+    // When the user wants only the photo without caption text, passing a single space ' '
+    // satisfies Facebook's validation while displaying purely the photo with NO visible text!
+    const effectiveMessage = caption && caption.trim() ? caption.trim() : ' ';
+
     const feedForm = new FormData();
     feedForm.append('access_token', cleanToken);
-    if (caption && caption.trim()) {
-      feedForm.append('message', caption.trim());
-    }
+    feedForm.append('message', effectiveMessage);
+    feedForm.append('attached_media[0]', JSON.stringify({ media_fbid: photoId }));
     feedForm.append('attached_media', JSON.stringify([{ media_fbid: photoId }]));
     feedForm.append('published', 'false');
     feedForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
@@ -442,33 +446,17 @@ export async function publishPhotoToFacebook({
     const feedData = await feedRes.json();
 
     if (feedData.error) {
-      // Fallback: If /{page-id}/feed rejected attached_media, schedule directly on the photo
-      const fallbackForm = new FormData();
-      fallbackForm.append('access_token', cleanToken);
-      if (caption && caption.trim()) {
-        fallbackForm.append('message', caption.trim());
-      }
-      fallbackForm.append('published', 'false');
-      fallbackForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
-
-      const fallbackRes = await fetch(`https://graph.facebook.com/v19.0/${photoId}`, {
-        method: 'POST',
-        body: fallbackForm,
-      });
-      const fallbackData = await fallbackRes.json();
-
-      if (fallbackData.error) {
-        return {
-          success: false,
-          error: feedData.error.message || fallbackData.error.message || 'ບໍ່ສາມາດຕັ້ງເວລາລົງ Planner ໄດ້',
-        };
-      }
-
+      console.error('Facebook feed scheduling error:', feedData.error);
       return {
-        success: true,
-        postId: photoId,
+        success: false,
+        error: feedData.error.message || 'ບໍ່ສາມາດຕັ້ງເວລາລົງ Planner ໄດ້',
       };
     }
+
+    return {
+      success: true,
+      postId: feedData.id,
+    };
 
     return {
       success: true,
