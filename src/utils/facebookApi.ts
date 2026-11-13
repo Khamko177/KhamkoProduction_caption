@@ -95,8 +95,10 @@ export async function testFacebookConnection(
   }
 
   try {
-    // 1. First test /me endpoint with the token
-    const meUrl = `https://graph.facebook.com/v19.0/me?fields=id,name,picture{url}&access_token=${encodeURIComponent(
+    // 1. First test /me endpoint with basic fields (id, name)
+    // NEVER include picture in initial fields query because picture edge requires
+    // 'pages_read_engagement' / 'Page Public Metadata Access' which triggers error #100!
+    const meUrl = `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${encodeURIComponent(
       cleanToken
     )}`;
 
@@ -116,19 +118,35 @@ export async function testFacebookConnection(
       };
     }
 
+    // Helper to fetch avatar safely without breaking on permission errors
+    const fetchAvatarSafely = async (targetId: string, token: string): Promise<string | undefined> => {
+      try {
+        const picRes = await fetch(
+          `https://graph.facebook.com/v19.0/${targetId}/picture?type=normal&redirect=false&access_token=${encodeURIComponent(
+            token
+          )}`
+        );
+        const picData = await picRes.json();
+        return picData?.data?.url;
+      } catch {
+        return undefined;
+      }
+    };
+
     // 2. If /me returned an ID that matches the pageId, it is definitely a valid direct Page Token!
     if (cleanPageId && meData.id === cleanPageId) {
+      const avatarUrl = await fetchAvatarSafely(meData.id, cleanToken);
       return {
         success: true,
         pageId: meData.id,
         pageName: meData.name,
-        avatarUrl: meData.picture?.data?.url,
+        avatarUrl,
       };
     }
 
     // 3. Auto-Resolve via /me/accounts (Handles User Token automatically!)
     try {
-      const accountsUrl = `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture{url}&limit=50&access_token=${encodeURIComponent(
+      const accountsUrl = `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token&limit=50&access_token=${encodeURIComponent(
         cleanToken
       )}`;
       const accountsRes = await fetch(accountsUrl);
@@ -162,12 +180,13 @@ export async function testFacebookConnection(
         }
 
         if (matched && matched.access_token) {
+          const avatarUrl = await fetchAvatarSafely(matched.id, matched.access_token);
           return {
             success: true,
             pageId: matched.id,
             pageName: matched.name,
             resolvedPageToken: matched.access_token,
-            avatarUrl: matched.picture?.data?.url,
+            avatarUrl,
             isAutoResolved: true,
             note: `✨ ລະບົບໄດ້ດຶງ Page Access Token ຂອງ "${matched.name}" ໃຫ້ອັດຕະໂນມັດແລ້ວ! (ระบบแปลงเป็น Page Token ให้อัตโนมัติ)`,
           };
@@ -177,9 +196,9 @@ export async function testFacebookConnection(
       // Continue to next checks if /me/accounts fails
     }
 
-    // 4. If cleanPageId was provided, try fetching the page directly
+    // 4. If cleanPageId was provided, try fetching the page directly (fields=id,name only)
     if (cleanPageId) {
-      const pageUrl = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name,picture{url}&access_token=${encodeURIComponent(
+      const pageUrl = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name&access_token=${encodeURIComponent(
         cleanToken
       )}`;
 
@@ -199,20 +218,22 @@ export async function testFacebookConnection(
         };
       }
 
+      const avatarUrl = await fetchAvatarSafely(pageData.id || cleanPageId, cleanToken);
       return {
         success: true,
         pageId: pageData.id || cleanPageId,
         pageName: pageData.name || meData.name,
-        avatarUrl: pageData.picture?.data?.url || meData.picture?.data?.url,
+        avatarUrl,
       };
     }
 
     // 5. If no pageId was provided but /me returned an entity with id & name
+    const avatarUrl = await fetchAvatarSafely(meData.id, cleanToken);
     return {
       success: true,
       pageId: meData.id,
       pageName: meData.name,
-      avatarUrl: meData.picture?.data?.url,
+      avatarUrl,
     };
   } catch (err: any) {
     return {
