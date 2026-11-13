@@ -346,7 +346,7 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
           pageId: fbConfig.pageId,
           accessToken: fbConfig.accessToken,
           imageBlob: blob,
-          caption: captionText,
+          caption: '',
           scheduledPublishTime: scheduledSec,
         });
 

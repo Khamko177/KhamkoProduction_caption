@@ -44,10 +44,6 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
   // Mode: 'now' | 'schedule'
   const [postMode, setPostMode] = useState<'now' | 'schedule'>('schedule');
 
-  // Caption message
-  const defaultCaption = baseConfig.quoteText || baseConfig.notifications[0]?.caption || '';
-  const [message, setMessage] = useState<string>(defaultCaption);
-
   // Date and Time for scheduling (Default: tomorrow at 07:45 fixed slot 1)
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -121,7 +117,7 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
       pageId: currentConfig.pageId,
       accessToken: currentConfig.accessToken,
       imageBlob,
-      caption: message,
+      caption: '',
       scheduledPublishTime,
     });
 
@@ -221,30 +217,30 @@ export const FacebookPostModal: React.FC<FacebookPostModalProps> = ({
             </div>
           )}
 
-          {/* Image & Caption Preview Box */}
-          <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 flex gap-3 items-center">
-            {previewDataUrl ? (
-              <img
-                src={previewDataUrl}
-                alt="Post Preview"
-                className="w-24 h-18 object-contain bg-black rounded-lg border border-slate-700 shrink-0"
-              />
-            ) : (
-              <div className="w-24 h-18 bg-slate-900 rounded-lg animate-pulse shrink-0" />
-            )}
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-slate-400 font-lao block mb-1">
-                ຂໍ້ຄວາມແຄັບຊັ່ນທີ່ຈະໂພສ:
+          {/* Image Preview Box (Clean Photo Only Preview) */}
+          <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between text-xs font-lao px-1">
+              <span className="flex items-center gap-1.5 text-slate-300 font-semibold">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>ຮູບພາບມີມທີ່ຈະໂພສ:</span>
               </span>
-              <textarea
-                rows={2}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="ພິມຂໍ້ຄວາມໂພສ..."
-                className={`w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 leading-snug ${
-                  isKhoiHukJao ? 'font-tiktok' : 'font-lao'
-                }`}
-              />
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-lao">
+                📸 ໂພສສະເພາະຮູບພາບ (Photo Only)
+              </span>
+            </div>
+
+            <div className="w-full flex items-center justify-center bg-black/60 rounded-xl p-2 border border-slate-800/80 min-h-[140px] max-h-[220px] overflow-hidden">
+              {previewDataUrl ? (
+                <img
+                  src={previewDataUrl}
+                  alt="Post Preview"
+                  className="max-h-[200px] w-auto max-w-full object-contain rounded-lg shadow-lg border border-slate-700/50"
+                />
+              ) : (
+                <div className="w-full h-32 bg-slate-900/60 rounded-lg animate-pulse flex items-center justify-center text-slate-500 text-xs font-lao">
+                  ກຳລັງໂຫຼດຮູບພາບຕົວຢ່າງ...
+                </div>
+              )}
             </div>
           </div>
 

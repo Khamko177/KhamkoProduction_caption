@@ -292,7 +292,7 @@ export interface PublishPhotoParams {
   pageId: string;
   accessToken: string;
   imageBlob: Blob;
-  caption: string;
+  caption?: string;
   /**
    * Optional UNIX timestamp in seconds (between 10 mins and 75 days in future)
    * If omitted, publishes immediately.
@@ -326,7 +326,9 @@ export async function publishPhotoToFacebook({
       const formData = new FormData();
       formData.append('access_token', cleanToken);
       formData.append('source', imageBlob, 'caption_meme.png');
-      formData.append('message', caption);
+      if (caption && caption.trim()) {
+        formData.append('message', caption.trim());
+      }
       formData.append('published', 'true');
 
       const url = `https://graph.facebook.com/v19.0/${cleanPageId}/photos`;
@@ -401,7 +403,9 @@ export async function publishPhotoToFacebook({
     // Meta Business Suite Planner & Scheduled Posts list specifically display Feed Posts!
     const feedForm = new FormData();
     feedForm.append('access_token', cleanToken);
-    feedForm.append('message', caption);
+    if (caption && caption.trim()) {
+      feedForm.append('message', caption.trim());
+    }
     feedForm.append('attached_media', JSON.stringify([{ media_fbid: photoId }]));
     feedForm.append('published', 'false');
     feedForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
@@ -416,7 +420,9 @@ export async function publishPhotoToFacebook({
       // Fallback: If /{page-id}/feed rejected attached_media, schedule directly on the photo
       const fallbackForm = new FormData();
       fallbackForm.append('access_token', cleanToken);
-      fallbackForm.append('message', caption);
+      if (caption && caption.trim()) {
+        fallbackForm.append('message', caption.trim());
+      }
       fallbackForm.append('published', 'false');
       fallbackForm.append('scheduled_publish_time', Math.floor(scheduledPublishTime).toString());
 
