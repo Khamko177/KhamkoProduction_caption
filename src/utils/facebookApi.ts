@@ -79,24 +79,63 @@ export async function testFacebookConnection(
   }
 
   try {
-    const url = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name,picture{url}&access_token=${encodeURIComponent(
+    // 1. First test /me endpoint with the token
+    const meUrl = `https://graph.facebook.com/v19.0/me?fields=id,name,picture{url}&access_token=${encodeURIComponent(
       cleanToken
     )}`;
 
-    const res = await fetch(url);
-    const data = await res.json();
+    const meRes = await fetch(meUrl);
+    const meData = await meRes.json();
 
-    if (data.error) {
+    if (meData.error) {
+      // If error is permission-related, provide helpful guidance in Thai/Lao
+      if (meData.error.code === 190) {
+        return {
+          success: false,
+          error: 'Token ໝົດອາຍຸ ຫຼື ບໍ່ຖືກຕ້ອງ (Token หมดอายุหรือไม่ถูกต้อง กรุณาสร้างใหม่)',
+        };
+      }
       return {
         success: false,
-        error: data.error.message || 'ບໍ່ສາມາດເຊື່ອມຕໍ່ Facebook Graph API ໄດ້',
+        error: meData.error.message || 'ບໍ່ສາມາດເຊື່ອມຕໍ່ Facebook Graph API ໄດ້',
+      };
+    }
+
+    // 2. If /me returned an ID that matches the pageId, it is definitely a valid Page Token!
+    if (meData.id === cleanPageId) {
+      return {
+        success: true,
+        pageName: meData.name,
+        avatarUrl: meData.picture?.data?.url,
+      };
+    }
+
+    // 3. If ID does not match, check if cleanPageId can be fetched
+    const pageUrl = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name,picture{url}&access_token=${encodeURIComponent(
+      cleanToken
+    )}`;
+
+    const pageRes = await fetch(pageUrl);
+    const pageData = await pageRes.json();
+
+    if (pageData.error) {
+      // If error is #100 missing permission, it means user provided User Token instead of Page Token
+      if (pageData.error.code === 100 || pageData.error.message?.includes('pages_read_engagement')) {
+        return {
+          success: false,
+          error: `⚠️ ລະຫັດນີ້ແມ່ນ User Token ຂອງບັນຊີສ່ວນຕົວ ("${meData.name}"), ບໍ່ແມ່ນ Page Token ຂອງເພຈ!\n\n👉 ວິທີແກ້: ໃນໜ້າ Graph API Explorer, ບ່ອນຊ່ອງ "ຜູ້ໃຊ້ຫຼືເພຈ" (User or Page), ໃຫ້ຄລິກເລືອກປ່ຽນເປັນຊື່ເພຈ (Khamko Production) ແລ້ວ Copy ລະຫັດ Token ໃໝ່ມາວາງເດີ!`,
+        };
+      }
+      return {
+        success: false,
+        error: pageData.error.message || 'ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເພຈໄດ້',
       };
     }
 
     return {
       success: true,
-      pageName: data.name,
-      avatarUrl: data.picture?.data?.url,
+      pageName: pageData.name || meData.name,
+      avatarUrl: pageData.picture?.data?.url || meData.picture?.data?.url,
     };
   } catch (err: any) {
     return {
