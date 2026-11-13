@@ -269,12 +269,20 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
       return;
     }
 
-    // Validation for past/too soon slots in fixed5 mode
+    // Validation for past/too soon or too far slots in fixed5 mode
     if (scheduleStrategy === 'fixed5') {
-      const invalidItem = plannedSchedule.find((item) => item.isPastOrTooSoon);
-      if (invalidItem) {
+      const pastItem = plannedSchedule.find((item) => item.isPastOrTooSoon);
+      if (pastItem) {
         alert(
-          `ຮອບເວລາ ${invalidItem.dateStr} ${invalidItem.timeStr} ແມ່ນຜ່ານມາແລ້ວ ຫຼື ໄວກວ່າ 10 ນາທີ.\n(Facebook กำหนดให้ตั้งเวลาล่วงหน้าอย่างน้อย 10 นาทีขึ้นไป)\n\n👉 ກະລຸນາເລືອກເລີ່ມຈາກ "ມື້ອື່ນ" ຫຼື ເລືອກຮອບເວລາຖັດໄປເດີ!`
+          `ຮອບເວລາ ${pastItem.dateStr} ${pastItem.timeStr} ແມ່ນຜ່ານມາແລ້ວ ຫຼື ໄວກວ່າ 10 ນາທີ.\n(Facebook กำหนดให้ตั้งเวลาล่วงหน้าอย่างน้อย 10 นาทีขึ้นไป)\n\n👉 ກະລຸນາເລືອກເລີ່ມຈາກ "ມື້ອື່ນ" ຫຼື ເລືອກຮອບເວລາຖັດໄປເດີ!`
+        );
+        return;
+      }
+
+      const tooFarItem = plannedSchedule.find((item) => item.isTooFarInFuture);
+      if (tooFarItem) {
+        alert(
+          `ຮອບເວລາ ${tooFarItem.dateStr} ${tooFarItem.timeStr} ແມ່ນໄກເກີນ 28 ມື້!\n\n⚠️ Facebook Graph API ອະນຸຍາດໃຫ້ຕັ້ງເວລາລ່ວງໜ້າໄດ້ສູງສຸດ 28 ມື້ເທົ່ານັ້ນ (ไม่เกิน 28 วัน).\n👉 ກະລຸນາເລືອກວັນທີເລີ່ມຕົ້ນໃຫ້ຢູ່ພາຍໃນ 28 ມື້ເດີ!`
         );
         return;
       }
@@ -863,6 +871,9 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                             onChange={(e) => setBatchStartDate(e.target.value)}
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                           />
+                          <span className="text-[10px] text-amber-400/90 font-lao block pt-0.5">
+                            ⚠️ Facebook ຈຳກັດຕັ້ງລ່ວງໜ້າໄດ້ບໍ່ເກີນ 28 ມື້
+                          </span>
                         </div>
 
                         <div className="space-y-1">
@@ -912,7 +923,7 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                                 <div
                                   key={idx}
                                   className={`text-[11px] p-1.5 rounded-lg border flex items-center justify-between gap-2 ${
-                                    item.isPastOrTooSoon
+                                    item.isPastOrTooSoon || item.isTooFarInFuture
                                       ? 'bg-red-500/10 border-red-500/30 text-red-300'
                                       : 'bg-slate-900 border-slate-800/80 text-slate-300'
                                   }`}
@@ -931,6 +942,11 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                                   {item.isPastOrTooSoon && (
                                     <span className="text-[9px] text-red-400 font-bold shrink-0">
                                       ຜ່ານມາແລ້ວ!
+                                    </span>
+                                  )}
+                                  {item.isTooFarInFuture && (
+                                    <span className="text-[9px] text-red-400 font-bold shrink-0">
+                                      ໄກເກີນ 28 ມື້!
                                     </span>
                                   )}
                                 </div>
@@ -952,6 +968,9 @@ export const BatchExportModal: React.FC<BatchExportModalProps> = ({
                             onChange={(e) => setBatchStartDate(e.target.value)}
                             className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono"
                           />
+                          <span className="text-[10px] text-amber-400/90 font-lao block pt-0.5">
+                            ⚠️ Facebook ຈຳກັດຕັ້ງລ່ວງໜ້າໄດ້ບໍ່ເກີນ 28 ມື້
+                          </span>
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] text-slate-400">ເລີ່ມເວລາ:</label>

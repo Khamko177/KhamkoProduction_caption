@@ -386,7 +386,7 @@ export async function publishPhotoToFacebook({
   // Timing validation
   const nowInSec = Math.floor(Date.now() / 1000);
   const minTime = nowInSec + 10 * 60; // 10 minutes in future
-  const maxTime = nowInSec + 75 * 24 * 60 * 60; // 75 days in future
+  const maxTime = nowInSec + 28 * 24 * 60 * 60; // 28 days in future (Facebook Page Feed strict limit)
 
   if (scheduledPublishTime < minTime) {
     return {
@@ -398,7 +398,7 @@ export async function publishPhotoToFacebook({
   if (scheduledPublishTime > maxTime) {
     return {
       success: false,
-      error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງບໍ່ເກີນ 75 ມື້ (เวลาที่ตั้งล่วงหน้าต้องไม่เกิน 75 วัน)',
+      error: 'ເວລາຕັ້ງໂພສລ່ວງໜ້າ ຕ້ອງບໍ່ເກີນ 28 ມື້ (Facebook จำกัดการตั้งเวลาล่วงหน้าไม่เกิน 28 วัน)',
     };
   }
 
@@ -504,6 +504,7 @@ export interface PlannedScheduleItem {
   slotIcon: string;
   slotId: string;
   isPastOrTooSoon: boolean;
+  isTooFarInFuture: boolean;
 }
 
 /**
@@ -521,6 +522,7 @@ export function computeDailyScheduleTimeline(
   const [year, month, day] = startDateStr.split('-').map(Number);
   const nowSec = Math.floor(Date.now() / 1000);
   const minFutureSec = nowSec + 10 * 60; // Facebook requires >= 10 mins in future
+  const maxFutureSec = nowSec + 28 * 24 * 60 * 60; // Facebook strict limit <= 28 days
 
   let currentDayOffset = 0;
   let currentSlotIdx = Math.max(0, Math.min(startSlotIndex, slots.length - 1));
@@ -547,6 +549,7 @@ export function computeDailyScheduleTimeline(
       slotIcon: slot.icon,
       slotId: slot.id,
       isPastOrTooSoon: scheduledTimestampSec < minFutureSec,
+      isTooFarInFuture: scheduledTimestampSec > maxFutureSec,
     });
 
     currentSlotIdx++;
