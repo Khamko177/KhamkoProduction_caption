@@ -64,17 +64,33 @@ export function saveFacebookSettings(settings: FacebookSettings): void {
 /**
  * Test Connection with Meta Graph API
  */
+export interface TestConnectionResult {
+  success: boolean;
+  pageId?: string;
+  pageName?: string;
+  avatarUrl?: string;
+  resolvedPageToken?: string;
+  isAutoResolved?: boolean;
+  note?: string;
+  error?: string;
+}
+
+/**
+ * Test Connection with Meta Graph API
+ * Supports both Page Access Token and User Access Token (auto-resolves Page Token via /me/accounts)
+ */
 export async function testFacebookConnection(
   pageId: string,
-  accessToken: string
-): Promise<{ success: boolean; pageName?: string; avatarUrl?: string; error?: string }> {
+  accessToken: string,
+  brandHint?: 'khamko' | 'khoihukjao' | string
+): Promise<TestConnectionResult> {
   const cleanPageId = pageId.trim();
   const cleanToken = accessToken.trim();
 
-  if (!cleanPageId || !cleanToken) {
+  if (!cleanToken) {
     return {
       success: false,
-      error: 'ກະລຸນາປ້ອນ Page ID ແລະ Access Token ໃຫ້ຄົບຖ້ວນ (กรุณากรอก Page ID และ Access Token ให้ครบถ้วน)',
+      error: 'ກະລຸນາປ້ອນ Access Token (กรุณากรอก Access Token จาก Meta Explorer)',
     };
   }
 
@@ -88,11 +104,10 @@ export async function testFacebookConnection(
     const meData = await meRes.json();
 
     if (meData.error) {
-      // If error is permission-related, provide helpful guidance in Thai/Lao
       if (meData.error.code === 190) {
         return {
           success: false,
-          error: 'Token ໝົດອາຍຸ ຫຼື ບໍ່ຖືກຕ້ອງ (Token หมดอายุหรือไม่ถูกต้อง กรุณาสร้างใหม่)',
+          error: 'Token ໝົດອາຍຸ ຫຼື ບໍ່ຖືກຕ້ອງ (Token หมดอายุหรือไม่ถูกต้อง กรุณากด Generate ใหม่)',
         };
       }
       return {
@@ -101,41 +116,103 @@ export async function testFacebookConnection(
       };
     }
 
-    // 2. If /me returned an ID that matches the pageId, it is definitely a valid Page Token!
-    if (meData.id === cleanPageId) {
+    // 2. If /me returned an ID that matches the pageId, it is definitely a valid direct Page Token!
+    if (cleanPageId && meData.id === cleanPageId) {
       return {
         success: true,
+        pageId: meData.id,
         pageName: meData.name,
         avatarUrl: meData.picture?.data?.url,
       };
     }
 
-    // 3. If ID does not match, check if cleanPageId can be fetched
-    const pageUrl = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name,picture{url}&access_token=${encodeURIComponent(
-      cleanToken
-    )}`;
+    // 3. Auto-Resolve via /me/accounts (Handles User Token automatically!)
+    try {
+      const accountsUrl = `https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,picture{url}&limit=50&access_token=${encodeURIComponent(
+        cleanToken
+      )}`;
+      const accountsRes = await fetch(accountsUrl);
+      const accountsData = await accountsRes.json();
 
-    const pageRes = await fetch(pageUrl);
-    const pageData = await pageRes.json();
+      if (accountsData.data && Array.isArray(accountsData.data) && accountsData.data.length > 0) {
+        // Find matching page by ID
+        let matched = accountsData.data.find((p: any) => cleanPageId && p.id === cleanPageId);
 
-    if (pageData.error) {
-      // If error is #100 missing permission, it means user provided User Token instead of Page Token
-      if (pageData.error.code === 100 || pageData.error.message?.includes('pages_read_engagement')) {
+        // If not matched by cleanPageId, find by brand hint or name
+        if (!matched) {
+          if (brandHint === 'khamko') {
+            matched = accountsData.data.find(
+              (p: any) =>
+                p.id === '105280994711324' ||
+                p.name.toLowerCase().includes('khamko')
+            );
+          } else if (brandHint === 'khoihukjao' || brandHint === 'khoiHukJao') {
+            matched = accountsData.data.find(
+              (p: any) =>
+                p.name.toLowerCase().includes('khoi') ||
+                p.name.toLowerCase().includes('huk') ||
+                p.name.includes('ຂ້ອຍຮັກເຈົ້າ')
+            );
+          }
+        }
+
+        // Fallback: If only 1 page exists or no specific brand filter, pick the first
+        if (!matched && accountsData.data.length === 1) {
+          matched = accountsData.data[0];
+        }
+
+        if (matched && matched.access_token) {
+          return {
+            success: true,
+            pageId: matched.id,
+            pageName: matched.name,
+            resolvedPageToken: matched.access_token,
+            avatarUrl: matched.picture?.data?.url,
+            isAutoResolved: true,
+            note: `✨ ລະບົບໄດ້ດຶງ Page Access Token ຂອງ "${matched.name}" ໃຫ້ອັດຕະໂນມັດແລ້ວ! (ระบบแปลงเป็น Page Token ให้อัตโนมัติ)`,
+          };
+        }
+      }
+    } catch {
+      // Continue to next checks if /me/accounts fails
+    }
+
+    // 4. If cleanPageId was provided, try fetching the page directly
+    if (cleanPageId) {
+      const pageUrl = `https://graph.facebook.com/v19.0/${cleanPageId}?fields=id,name,picture{url}&access_token=${encodeURIComponent(
+        cleanToken
+      )}`;
+
+      const pageRes = await fetch(pageUrl);
+      const pageData = await pageRes.json();
+
+      if (pageData.error) {
+        if (pageData.error.code === 100 || pageData.error.message?.includes('pages_read_engagement')) {
+          return {
+            success: false,
+            error: `⚠️ ລະຫັດນີ້ແມ່ນ User Token ຂອງບັນຊີສ່ວນຕົວ ("${meData.name}"), ບໍ່ແມ່ນ Page Token ຂອງເພຈ!\n\n👉 ວິທີງ່າຍທີ່ສຸດ: ໃນໜ້າ Graph API Explorer ໃຫ້ກົດ Run "me/accounts" ແລ້ວ Copy ລະຫັດ "access_token" ທີ່ຢູ່ກ້ອງຊື່ເພຈມາວາງເດີ!`,
+          };
+        }
         return {
           success: false,
-          error: `⚠️ ລະຫັດນີ້ແມ່ນ User Token ຂອງບັນຊີສ່ວນຕົວ ("${meData.name}"), ບໍ່ແມ່ນ Page Token ຂອງເພຈ!\n\n👉 ວິທີແກ້: ໃນໜ້າ Graph API Explorer, ບ່ອນຊ່ອງ "ຜູ້ໃຊ້ຫຼືເພຈ" (User or Page), ໃຫ້ຄລິກເລືອກປ່ຽນເປັນຊື່ເພຈ (Khamko Production) ແລ້ວ Copy ລະຫັດ Token ໃໝ່ມາວາງເດີ!`,
+          error: pageData.error.message || 'ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເພຈໄດ້',
         };
       }
+
       return {
-        success: false,
-        error: pageData.error.message || 'ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເພຈໄດ້',
+        success: true,
+        pageId: pageData.id || cleanPageId,
+        pageName: pageData.name || meData.name,
+        avatarUrl: pageData.picture?.data?.url || meData.picture?.data?.url,
       };
     }
 
+    // 5. If no pageId was provided but /me returned an entity with id & name
     return {
       success: true,
-      pageName: pageData.name || meData.name,
-      avatarUrl: pageData.picture?.data?.url || meData.picture?.data?.url,
+      pageId: meData.id,
+      pageName: meData.name,
+      avatarUrl: meData.picture?.data?.url,
     };
   } catch (err: any) {
     return {

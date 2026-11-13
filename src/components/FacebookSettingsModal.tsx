@@ -5,6 +5,7 @@ import {
   getFacebookSettings,
   saveFacebookSettings,
   testFacebookConnection,
+  TestConnectionResult,
 } from '../utils/facebookApi';
 import {
   X,
@@ -41,12 +42,7 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
   const [settings, setSettings] = useState<FacebookSettings>(getFacebookSettings());
   const [showToken, setShowToken] = useState<boolean>(false);
   const [testing, setTesting] = useState<boolean>(false);
-  const [testResult, setTestResult] = useState<{
-    success?: boolean;
-    pageName?: string;
-    avatarUrl?: string;
-    error?: string;
-  } | null>(null);
+  const [testResult, setTestResult] = useState<TestConnectionResult | null>(null);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [showGuide, setShowGuide] = useState<boolean>(false);
 
@@ -73,7 +69,7 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
     setTesting(true);
     setTestResult(null);
 
-    const res = await testFacebookConnection(currentConfig.pageId, currentConfig.accessToken);
+    const res = await testFacebookConnection(currentConfig.pageId, currentConfig.accessToken, activeBrandTab);
     setTesting(false);
     setTestResult(res);
 
@@ -82,6 +78,8 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
         ...prev,
         [activeBrandTab]: {
           ...prev[activeBrandTab],
+          pageId: res.pageId || prev[activeBrandTab].pageId,
+          accessToken: res.resolvedPageToken || prev[activeBrandTab].accessToken,
           isConnected: true,
           pageName: res.pageName,
           avatarUrl: res.avatarUrl,
@@ -270,7 +268,7 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
             <button
               type="button"
               onClick={handleTestConnection}
-              disabled={testing || !currentConfig.pageId || !currentConfig.accessToken}
+              disabled={testing || !currentConfig.accessToken}
               className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer font-lao disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {testing ? (
@@ -305,9 +303,9 @@ export const FacebookSettingsModal: React.FC<FacebookSettingsModalProps> = ({
                       ? `ເຊື່ອມຕໍ່ສຳເລັດກັບ: ${testResult.pageName}!`
                       : 'ການເຊື່ອມຕໍ່ລົ້ມເຫຼວ'}
                   </p>
-                  <p className="text-[11px] opacity-90 mt-0.5">
+                  <p className="text-[11px] opacity-90 mt-0.5 whitespace-pre-line leading-relaxed">
                     {testResult.success
-                      ? 'Token ແລະ Page ID ຖືກຕ້ອງ 100%, ສາມາດໂພສ ແລະ ຕັ້ງເວລາລົງ Meta Planner ໄດ້ທັນທີ.'
+                      ? (testResult.note || 'Token ແລະ Page ID ຖືກຕ້ອງ 100%, ສາມາດໂພສ ແລະ ຕັ້ງເວລາລົງ Meta Planner ໄດ້ທັນທີ.')
                       : testResult.error}
                   </p>
                 </div>
