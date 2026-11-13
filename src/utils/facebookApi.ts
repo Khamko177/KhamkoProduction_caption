@@ -95,29 +95,6 @@ export async function testFacebookConnection(
   }
 
   try {
-    // 1. First test /me endpoint with basic fields (id, name)
-    // NEVER include picture in initial fields query because picture edge requires
-    // 'pages_read_engagement' / 'Page Public Metadata Access' which triggers error #100!
-    const meUrl = `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${encodeURIComponent(
-      cleanToken
-    )}`;
-
-    const meRes = await fetch(meUrl);
-    const meData = await meRes.json();
-
-    if (meData.error) {
-      if (meData.error.code === 190) {
-        return {
-          success: false,
-          error: 'Token ໝົດອາຍຸ ຫຼື ບໍ່ຖືກຕ້ອງ (Token หมดอายุหรือไม่ถูกต้อง กรุณากด Generate ใหม่)',
-        };
-      }
-      return {
-        success: false,
-        error: meData.error.message || 'ບໍ່ສາມາດເຊື່ອມຕໍ່ Facebook Graph API ໄດ້',
-      };
-    }
-
     // Helper to fetch avatar safely without breaking on permission errors
     const fetchAvatarSafely = async (targetId: string, token: string): Promise<string | undefined> => {
       try {
@@ -133,8 +110,68 @@ export async function testFacebookConnection(
       }
     };
 
-    // 2. If /me returned an ID that matches the pageId, it is definitely a valid direct Page Token!
-    if (cleanPageId && meData.id === cleanPageId) {
+    // 1. Inspect token via official /debug_token endpoint first
+    // This endpoint works 100% without triggering error #100 on unreviewed permissions!
+    try {
+      const debugUrl = `https://graph.facebook.com/v19.0/debug_token?input_token=${encodeURIComponent(
+        cleanToken
+      )}&access_token=${encodeURIComponent(cleanToken)}`;
+      const debugRes = await fetch(debugUrl);
+      const debugJson = await debugRes.json();
+
+      if (debugJson.data) {
+        const d = debugJson.data;
+
+        if (!d.is_valid) {
+          return {
+            success: false,
+            error: 'Token ໝົດອາຍຸ ຫຼື ຖືກຍົກເລີກແລ້ວ (Token หมดอายุ กรุณากด Generate Token ใหม่)',
+          };
+        }
+
+        // If this is a PAGE Token
+        if (d.type === 'PAGE') {
+          const targetPageId = d.profile_id || cleanPageId;
+          const pageTitle = d.application || (brandHint === 'khamko' ? 'Khamko Production' : 'Facebook Page');
+          const scopes = d.scopes || [];
+
+          // Verify if it has posting capability
+          const hasPostPermission = scopes.includes('pages_manage_posts');
+
+          if (!hasPostPermission) {
+            return {
+              success: false,
+              error: `⚠️ Token ນີ້ຖືກຕ້ອງຂອງเพจ "${pageTitle}" ແລ້ວ ແຕ່ຍັງຂາດສິດ "pages_manage_posts"!\n\n👉 ວິທີເພີ່ມ: ໃນໜ້າ Graph API Explorer, ບ່ອນຊ່ອງ "เพิ่มสิทธิ์การอนุญาต" ໃຫ້ພິມຄົ້ນຫາ "pages_manage_posts" ແລ້ວກົດເລືອກ ➔ ກົດປຸ່ມສີຟ້າ "Generate Access Token" ອີກຄັ້ງເດີ!`,
+            };
+          }
+
+          const avatarUrl = await fetchAvatarSafely(targetPageId, cleanToken);
+          return {
+            success: true,
+            pageId: targetPageId,
+            pageName: pageTitle,
+            avatarUrl,
+            note: '✨ ເຊື່ອມຕໍ່ສຳເລັດ 100%! Token ມີສິດ pages_manage_posts ພ້ອມໂພສ ແລະ ຕັ້ງເວລາລົງ Planner ໄດ້ເລີຍ.',
+          };
+        }
+      }
+    } catch {
+      // Continue to fallback checks if debug_token is not reachable
+    }
+
+    // 2. Fallback to /me endpoint with basic fields (id, name)
+    let meData: any = null;
+    try {
+      const meUrl = `https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${encodeURIComponent(
+        cleanToken
+      )}`;
+      const meRes = await fetch(meUrl);
+      meData = await meRes.json();
+    } catch {
+      // ignore
+    }
+
+    if (meData && !meData.error && cleanPageId && meData.id === cleanPageId) {
       const avatarUrl = await fetchAvatarSafely(meData.id, cleanToken);
       return {
         success: true,
@@ -207,9 +244,10 @@ export async function testFacebookConnection(
 
       if (pageData.error) {
         if (pageData.error.code === 100 || pageData.error.message?.includes('pages_read_engagement')) {
+          const userName = meData?.name ? ` ("${meData.name}")` : '';
           return {
             success: false,
-            error: `⚠️ ລະຫັດນີ້ແມ່ນ User Token ຂອງບັນຊີສ່ວນຕົວ ("${meData.name}"), ບໍ່ແມ່ນ Page Token ຂອງເພຈ!\n\n👉 ວິທີງ່າຍທີ່ສຸດ: ໃນໜ້າ Graph API Explorer ໃຫ້ກົດ Run "me/accounts" ແລ້ວ Copy ລະຫັດ "access_token" ທີ່ຢູ່ກ້ອງຊື່ເພຈມາວາງເດີ!`,
+            error: `⚠️ ລະຫັດນີ້ແມ່ນ User Token ຂອງບັນຊີສ່ວນຕົວ${userName}, ບໍ່ແມ່ນ Page Token ຂອງເພຈ!\n\n👉 ວິທີງ່າຍທີ່ສຸດ: ໃນໜ້າ Graph API Explorer ໃຫ້ກົດ Run "me/accounts" ແລ້ວ Copy ລະຫັດ "access_token" ທີ່ຢູ່ກ້ອງຊື່ເພຈມາວາງເດີ!`,
           };
         }
         return {
@@ -222,18 +260,25 @@ export async function testFacebookConnection(
       return {
         success: true,
         pageId: pageData.id || cleanPageId,
-        pageName: pageData.name || meData.name,
+        pageName: pageData.name || meData?.name,
         avatarUrl,
       };
     }
 
     // 5. If no pageId was provided but /me returned an entity with id & name
-    const avatarUrl = await fetchAvatarSafely(meData.id, cleanToken);
+    if (meData && !meData.error && meData.id) {
+      const avatarUrl = await fetchAvatarSafely(meData.id, cleanToken);
+      return {
+        success: true,
+        pageId: meData.id,
+        pageName: meData.name,
+        avatarUrl,
+      };
+    }
+
     return {
-      success: true,
-      pageId: meData.id,
-      pageName: meData.name,
-      avatarUrl,
+      success: false,
+      error: 'ບໍ່ສາມາດຢືນຢັນ Token ນີ້ໄດ້ (ไม่สามารถตรวจสอบ Token นี้ได้ กรุณาสร้างใหม่)',
     };
   } catch (err: any) {
     return {
